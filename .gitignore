@@ -1,0 +1,6 @@
+**/data
+*.out
+*.csv
+*.swp
+*.so
+*.pyc
