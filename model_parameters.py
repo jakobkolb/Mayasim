@@ -39,9 +39,9 @@ precip_percent = 0.25
 #rate of natural forest depreciation per unit time
 natprobdec = 0.003
 #Threshold for forest regeneration 1 -> 2
-state_change_s2 = 25.
+state_change_s2 = 40.
 #Threshold for forest regeneration 2 -> 3
-state_change_s3 = 85.
+state_change_s3 = 100.
 #number of state 3 neighbors required for 2 -> 3 regeneration
 min_number_of_s3_neighbours = 2
 

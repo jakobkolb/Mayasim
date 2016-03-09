@@ -7,7 +7,7 @@ import scipy.ndimage as ndimage
 import os
 import datetime
 
-debug = True
+debug = False
 
 #def main():
 
@@ -705,7 +705,7 @@ for step in xrange(timesteps):
     np.save(location+"degree_%d.npy"%(t,),degree)
     np.save(location+"comp_size_%d.npy"%(t,),comp_size)
     np.save(location+"centrality_%d.npy"%(t,),centrality)
-    np.save(location+"trade_strength_%d.npy"%(t,),trade_strength)
+    np.save(location+"trade_income_%d.npy"%(t,),trade_strength)
     
     np.save(location+"number_settlements_%d.npy"%(t,),number_settlements)
     np.save(location+"settlement_positions_%d.npy"%(t,),settlement_positions) 

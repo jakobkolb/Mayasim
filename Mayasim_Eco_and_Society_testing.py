@@ -83,8 +83,10 @@ soil_deg = np.zeros((rows,columns))
 def net_primary_prod(temp,spaciotemporal_precipitation):
     ### net_primaty_prod is the minimum of a quantity derived from local temperature and rain
     ### Why is it rain and not 'surface water' according to the waterflow model??
+###EQUATION###################################################################            
     npp = 3000 * np.minimum(1 - np.exp((-6.64e-4 * spaciotemporal_precipitation)),
                               1./(1+np.exp(1.315-(0.119 * temp))))
+###EQUATION###################################################################            
     return npp
 
 ###*******************************************************************
@@ -107,8 +109,11 @@ class Waterflow:
         ### Modulates the initial precip dataset with a 24 timestep period.
         ### Returns a field of rainfall values for each cell.
         ### If veg_rainfall > 0, cleared_land_neighbours decreases rain.
+###EQUATION###################################################################            
         self.spaciotemporal_precipitation = precip*(1 
             + precipitationModulation[(np.ceil(t/climate_var)%8).astype(int)]) - veg_rainfall*cleared_land_neighbours
+###EQUATION###################################################################            
+
     def get_waterflow(self):
         if debug: print 'get waterflow'
 
@@ -211,7 +216,7 @@ class Forest:
         if debug: print 'forest evolve'
         npp_mean = np.nanmean(npp)
         ### Iterate over all cells repeatedly and regenerate or degenerate
-        for repeat in xrange(3):
+        for repeat in xrange(4):
             for i in list_of_land_patches: 
                 ### Forest regenerates faster [slower] (linearly) , if net primary productivity on the patch
                 ### is above [below] average.
@@ -255,7 +260,9 @@ def get_ag(npp,wf):
     ### agricultural productivit is calculated via a linear additive model from
     ### net primary productivity, soil productivity, slope, waterflow and soil degradation
     ### of each patch.
+###EQUATION###################################################################            
     return a_npp*npp + a_sp*soilprod - a_s*slope - a_wf*wf - soil_deg
+###EQUATION###################################################################            
     
 ###*******************************************************************
     
@@ -265,7 +272,10 @@ def get_ecoserv(ag,wf,forest):
     ### state on the cell (forest) \in [1,3], 
     ### The recent version of mayasim limits value of ecosystem services to 1 < ecoserv < 250,
     ### it also proposes to include population density (pop_gradient) and precipitation (rain)
+###EQUATION###################################################################            
     return e_ag*ag + e_wf*wf + e_f*(forest-1.) #+ e_r*rain(t) - e_deg * pop_gradient
+###EQUATION###################################################################            
+
     
 ######################################################################
 ### The Society
@@ -337,10 +347,12 @@ class Settlements:
         ### not explained any further...
         self.area_of_influence = (self.population**0.8)/60.
         for city in np.where(self.population!=0)[0]:
+
             stencil = (area*(
             (self.settlement_positions[0][city] - self.coordinates[0])**2 +
             (self.settlement_positions[1][city] - self.coordinates[1])**2)
             )    <= self.area_of_influence[city]**2
+            
             self.cells_in_influence[city] = self.coordinates[:,stencil]
         self.number_cells_in_influence = np.array([len(x[0]) for x in self.cells_in_influence])
         for city in np.where(self.population==0)[0]:
@@ -350,6 +362,9 @@ class Settlements:
         return self.cells_in_influence, self.number_cells_in_influence 
     
     def get_cropped_cells(self,bca):
+        #updates the cropped cells for each city with positive population.
+        #calculates the utility for each cell (depending on distance from city)
+        #
         if debug: print 'get cropped cells'
         abandoned = 0
         sown = 0
@@ -369,7 +384,10 @@ class Settlements:
             distances = np.sqrt(area*(
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
                 (self.settlement_positions[1][city] - self.coordinates[1])**2))
+###EQUATION###################################################################            
             utility = bca - estab_cost - (ag_travel_cost * distances)/np.sqrt(self.population[city])
+###EQUATION###################################################################            
+
             # 1.) abandon cells if population too low after cities age > 5 years
             if (ag_pop_density[city] < 40 and self.age[city] > 5):
                 for number_lost_cells in xrange(np.ceil(30/ag_pop_density[city]).astype('int')):
@@ -418,7 +436,9 @@ class Settlements:
         # agricultural benefit of cropping
         for city in np.where(self.population!=0)[0]:
             crops = bca[self.cropped_cells[city][0],self.cropped_cells[city][1]]
+###EQUATION###################################################################            
             self.crop_yield[city] = np.nanmean(crops[crops>0])
+###EQUATION###################################################################            
             
         self.crop_yield[np.isnan(self.crop_yield)] = 0
         self.crop_yield[self.population==0] = 0
@@ -428,8 +448,10 @@ class Settlements:
         if debug: print 'get eco income'
         # benefit from ecosystem services of cells in influence
         for city in np.where(self.population!=0)[0]:
+###EQUATION###################################################################            
             self.eco_benefit[city] = np.nanmean(es[self.cells_in_influence[city]])
         self.eco_benefit[self.population==0] = 0
+###EQUATION###################################################################            
         return self.eco_benefit
             
     def get_pop_mig(self):
@@ -479,7 +501,9 @@ class Settlements:
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
                 (self.settlement_positions[1][city] - self.coordinates[1])**2))
                 
+###EQUATION###################################################################            
             pop_gradient[self.cells_in_influence[city][0],self.cells_in_influence[city][1]] += self.population[city]/(300*(1+distance[self.cells_in_influence[city][0],self.cells_in_influence[city][1]]))
+###EQUATION###################################################################            
             pop_gradient[pop_gradient>15] = 15
          
         return pop_gradient
@@ -598,18 +622,22 @@ class Settlements:
         
     def get_trade_income(self):
         if debug: print 'get trade income'
+###EQUATION###################################################################            
         self.trade_income = 1./30.*( 1 + self.comp_size/self.centrality )**0.9
         self.trade_income[self.trade_income>1] = 1
         self.trade_income[self.trade_income<0] = 0
         self.trade_income[self.degree==0] = 0
+###EQUATION###################################################################            
         return self.trade_income
     
     def get_real_income_pc(self):
         if debug: print 'get real income'
         ### combine agricultural, ecosystem service and trade benefit
         
+###EQUATION###################################################################            
         self.real_income_pc = r_bca * self.crop_yield + r_es * self.eco_benefit + r_trade * self.trade_income
         self.real_income_pc = self.real_income_pc / self.population
+###EQUATION###################################################################            
         return self.real_income_pc
        
     def migration(self,es):

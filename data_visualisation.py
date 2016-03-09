@@ -10,10 +10,11 @@ print sys.argv
 
 ################################################################################
 
-N = 110
+N = int(sys.argv[2])
+verbose = False
 
-data_directory = 'data/' + sys.argv[1]+ '/'
-picture_directory = 'data/' + sys.argv[1] + '_plots/'
+data_directory = sys.argv[1]+ '/'
+picture_directory = sys.argv[1] + '_plots/'
 
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
@@ -341,7 +342,8 @@ def write_centrality_evo(t):
     centrality_evo[t-1,:len(step)] = step
     
 def write_trade_income_evo(t):
-    step = np.load(data_directory+"trade_income_%d.npy"%(t,))
+    #step = np.load(data_directory+"trade_income_%d.npy"%(t,))
+    step = np.load(data_directory+"trade_strength_%d.npy"%(t,))
     trade_income_evo[t-1,:len(step)] = step
      
 def write_soil_deg_evo(t):
@@ -374,20 +376,20 @@ def write_ag_pop_density_evo(t):
 ### loop over time, saving frames and recording time evolution
 for t in xrange(1,N+1):
     print t
-    
-    show_rain(t) 
-    show_npp(t)
-    show_forest(t)
-    show_wf(t)
-    show_ag(t)
-    show_es(t)
-    
-    show_soil_deg(t)
-    show_bca(t)
-    
-    show_bca_influence_cropped(t)
-    show_network(t)
-    show_pop_gradient(t)
+    if verbose: 
+        show_rain(t) 
+        show_npp(t)
+        show_forest(t)
+        show_wf(t)
+        show_ag(t)
+        show_es(t)
+        
+        show_soil_deg(t)
+        show_bca(t)
+        
+        show_bca_influence_cropped(t)
+        show_network(t)
+        show_pop_gradient(t)
     
     write_rain_evo(t)
     write_npp_evo(t)
