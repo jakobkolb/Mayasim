@@ -1,1 +1,1 @@
-f2py --f90flags='-fopenmp -O3' -lgomp -c -m f90routines f90routines.f90
+f2py --verbose --f90flags='-fopenmp -O3 -ftree-vectorize' -lgomp -c -m f90routines f90routines.f90

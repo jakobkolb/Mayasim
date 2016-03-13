@@ -3,6 +3,44 @@ MODULE f90routines
       IMPLICIT NONE
 
       CONTAINS
+      SUBROUTINE f90sparsecentrality(A, IC, AA, JA, M, N, NNZ, centrality_out)
+                INTEGER, INTENT(in)                     :: M, N, NNZ
+                INTEGER, DIMENSION(M,M), INTENT(in)     :: A
+                INTEGER, DIMENSION(N),   INTENT(in)     :: IC
+                INTEGER, DIMENSION(NNZ), INTENT(in)     :: AA, JA
+
+                INTEGER, DIMENSION(M),   INTENT(out)    :: centrality_out
+                !f2py depend(N) site, visited, x
+                INTEGER, DIMENSION(M)                   :: site, visited, x, dbsite
+
+                INTEGER :: i, j, k, l, k1, k2
+
+                centrality_out = 0
+
+               !$OMP PARALLEL DO PRIVATE(site, visited, x, l, k1, k2, k)
+               DO i = 1,M
+                       site = 0
+                       site(i) = 1
+                       visited = -1
+                       WHERE (site /= 0) visited = 0
+                       DO WHILE (COUNT(visited == 0) > 0)
+                               centrality_out(i) = centrality_out(i) + 1
+                               WHERE (visited == 0) visited = 1
+                               x = site
+                               DO l = 1, M
+                                       k1 = IC(l)
+                                       k2 = IC(l + 1) - 1
+                                       site(l) = 0
+                                       DO k = k1, k2
+                                               site(l) = site(l) + AA(k)*x(JA(k))
+                                       END DO
+                               END DO
+                               WHERE (site > 0 .AND. visited == -1) visited = 0
+                       END DO
+               END DO
+               !$OMP END PARALLEL DO
+
+      END SUBROUTINE f90sparsecentrality
 
       SUBROUTINE f90centrality(a, N, centrality_out)
 
@@ -29,27 +67,20 @@ MODULE f90routines
             ! 0  if node is newly visited
             ! 1  if node was previously visited
             
-            !$OMP PARALLEL DO PRIVATE(site, visited)
+            !!$OMP PARALLEL DO PRIVATE(site, visited)
               DO i = 1,N
-
                      site = 0
                      site(i) = 1
                      visited = -1
-
                      WHERE (site /= 0) visited = 0
-
                      DO WHILE (COUNT(visited == 0) > 0)
-
                              centrality_out(i) = centrality_out(i) + 1
                              WHERE (visited == 0) visited = 1
                              site = MATMUL(site,a)
-                             WHERE (site > 0 .AND. visited == -1) &
-                                     visited = 0
-
+                             WHERE (site > 0 .AND. visited == -1) visited = 0
                      END DO
-
              END DO
-           !$OMP END PARALLEL DO
+           !!$OMP END PARALLEL DO
 
       END SUBROUTINE f90centrality
 

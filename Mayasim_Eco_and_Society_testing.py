@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.sparse as sparse
 import scipy.ndimage as ndimage
 import os
 import matplotlib.pyplot as plot
@@ -362,9 +363,13 @@ class Settlements:
         return self.cells_in_influence, self.number_cells_in_influence 
     
     def get_cropped_cells(self,bca):
-        #updates the cropped cells for each city with positive population.
-        #calculates the utility for each cell (depending on distance from city)
-        #
+        # updates the cropped cells for each city with positive population.
+        # calculates the utility for each cell (depending on distance from the respective city)
+        # If population per cropped cell is lower then min_people_per_cropped_cell,
+        # cells are abandoned. Cells with negative utility are also abandoned.
+        # If population per cropped cell is higher than
+        # max_people_per_cropped_cell, new cells are cropped.
+        # Newly cropped cells are chosen such that they have highest utility
         if debug: print 'get cropped cells'
         abandoned = 0
         sown = 0
@@ -372,7 +377,8 @@ class Settlements:
         # for each settlement: how many cells are currently cropped ?
         self.number_cropped_cells = np.array([len(x[0]) for x in self.cropped_cells])
         
-        # agricultural population density determines the number of cells that can be cropped
+        # agricultural population density (people per cropped land) 
+        # determines the number of cells that can be cropped
         ag_pop_density = self.population/(self.number_cropped_cells * area)
         occup = np.concatenate(self.cropped_cells,axis=1)
         for index in xrange(len(occup[0])):
@@ -380,6 +386,7 @@ class Settlements:
         
         self.age += 1
         # for each settlement: which cells to crop ?
+        # calculate utility first!
         for city in np.where(self.population!=0)[0]:
             distances = np.sqrt(area*(
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
@@ -389,7 +396,7 @@ class Settlements:
 ###EQUATION###################################################################            
 
             # 1.) abandon cells if population too low after cities age > 5 years
-            if (ag_pop_density[city] < 40 and self.age[city] > 5):
+            if (ag_pop_density[city] < min_people_per_cropped_cell and self.age[city] > 5):
                 for number_lost_cells in xrange(np.ceil(30/ag_pop_density[city]).astype('int')):
                     # give up cell with lowest utility
                     cells = self.cropped_cells[city]               
@@ -400,7 +407,7 @@ class Settlements:
                     abandoned += 1
 
             # 2.) include new cells if population exceeds a threshold 
-            for number_new_cells in xrange(np.floor(ag_pop_density[city]/125).astype('int')):   
+            for number_new_cells in xrange(np.floor(ag_pop_density[city]/max_people_per_cropped_cell).astype('int')):   
                 # choose uncropped cell with maximal utility
                 influence = np.zeros((rows,columns))
                 influence[self.cells_in_influence[city][0],self.cells_in_influence[city][1]] = 1
@@ -422,11 +429,15 @@ class Settlements:
                 self.occupied_cells[coor[0],coor[1]] = 0
                 abandoned += len(abandon_ind)
 
-                
+        
+        # Finally, update list of lists containing cropped cells for each city with 
+        # positive population. 
+        # a) Abandon all cells for cities with zero population:
         for city in np.where(self.population==0)[0]:
             self.cropped_cells[city] = np.array([[],[]],dtype='int')
         self.number_cropped_cells[self.population==0] = 0
         
+        # b) kill cities without croppe cells:
         self.number_cropped_cells = np.array([len(x[0]) for x in self.cropped_cells])
         self.population[self.number_cropped_cells==0] = 0 
         return self.age, self.cropped_cells, self.number_cropped_cells, abandoned, sown, self.occupied_cells
@@ -593,9 +604,25 @@ class Settlements:
         return self.degree, self.comp_size
     def get_centrality(self):
         if debug: print 'get centrality'
+        print sum(sum(self.adjacency)) / self.number_settlements**2 * 100
 
-        ### This Fortran implementation has proven to be MUUUCH faster.
-        self.centrality = f90routines.f90centrality(self.adjacency, self.number_settlements)
+        ### This Fortran implementation using sparse matrices has proven to be MUUUCH faster.
+
+        adjacency_CSR = sparse.csr_matrix(self.adjacency)
+
+        A = adjacency_CSR.data
+        JA = adjacency_CSR.indices+1
+        IC = adjacency_CSR.indptr+1
+
+        l_A = np.shape(A)[0]
+        l_IC = np.shape(IC)[0]
+        print l_A/2
+
+        if l_A> 0:
+            self.centrality = f90routines.f90sparsecentrality(self.adjacency, IC, A, JA, self.number_settlements, l_IC, l_A)
+        elif l_A == 0:
+            self.centrality = np.ones(l_IC-1, dtype=int)
+
 
         #it is basically an adoption of the following fragment of python code.
         #can be found in f90routines.f90 and has to be compiled with openMP flags via

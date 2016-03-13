@@ -64,6 +64,9 @@ slope_yield = -0.0052
 estab_cost = 900
 ag_travel_cost = 950
 
+min_people_per_cropped_cell = 40.
+max_people_per_cropped_cell = 125.
+
 #PARAMETERS FOR SOIL DEGRADATION:
 deg_rate = 5.0 # 5.0 - degradation rate for cropped cells
 reg_rate = 2.5 # 2.5 - regeneration rate for state 3 forest cells
@@ -87,7 +90,7 @@ r_trade = 6000. # 6000. wdight trade income
 birth_rate_parameter = 0.15
 
 # optionally make birth rate scale inversely with p.c. income
-popcontrol = False
+popcontrol = True
 max_birth_rate =  0.15 
 min_birth_rate = -0.2
 shift = 0.325

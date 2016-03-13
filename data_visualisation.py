@@ -11,7 +11,7 @@ print sys.argv
 ################################################################################
 
 N = int(sys.argv[2])
-verbose = False
+verbose = True
 
 data_directory = sys.argv[1]+ '/'
 picture_directory = sys.argv[1] + '_plots/'
@@ -342,8 +342,8 @@ def write_centrality_evo(t):
     centrality_evo[t-1,:len(step)] = step
     
 def write_trade_income_evo(t):
-    #step = np.load(data_directory+"trade_income_%d.npy"%(t,))
-    step = np.load(data_directory+"trade_strength_%d.npy"%(t,))
+    step = np.load(data_directory+"trade_income_%d.npy"%(t,))
+    #step = np.load(data_directory+"trade_strength_%d.npy"%(t,))
     trade_income_evo[t-1,:len(step)] = step
      
 def write_soil_deg_evo(t):

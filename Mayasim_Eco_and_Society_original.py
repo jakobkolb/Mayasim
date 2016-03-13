@@ -367,7 +367,7 @@ class Settlements:
             
     def get_pop_mig(self):
         # gives population and out-migration
-        print "number of settlements", self.number_settlements
+        print "number of settlements", sum(self.population != 0)
         
         # death rate correlates inversely with real income per capita
         min_death_rate = 0.005
