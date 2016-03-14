@@ -608,18 +608,24 @@ class Settlements:
 
         ### This Fortran implementation using sparse matrices has proven to be MUUUCH faster.
 
+        # convert adjacency matrix to compressed sparse row format
         adjacency_CSR = sparse.csr_matrix(self.adjacency)
 
+        # extract data vector, row index vector and index pointer vector
         A = adjacency_CSR.data
+        # add one to make indexing compatible to fortran (where indices start counting with 1)
         JA = adjacency_CSR.indices+1
         IC = adjacency_CSR.indptr+1
 
+        #determine length of data vectors
         l_A = np.shape(A)[0]
         l_IC = np.shape(IC)[0]
         print l_A/2
-
+        
+        # if data vector is not empty, pass data to fortran routine.
+        # else, just fill the centrality vector with ones.
         if l_A> 0:
-            self.centrality = f90routines.f90sparsecentrality(self.adjacency, IC, A, JA, self.number_settlements, l_IC, l_A)
+            self.centrality = f90routines.f90sparsecentrality(IC, A, JA, self.number_settlements, l_IC, l_A)
         elif l_A == 0:
             self.centrality = np.ones(l_IC-1, dtype=int)
 

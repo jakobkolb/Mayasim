@@ -17,10 +17,8 @@ temp = temp/12. ### factor 1/12 as in netlogo version
 precip = np.load('0_RES_432x400_precip.npy')
 elev = np.load('0_RES_432x400_elev.npy')
 soilprod = np.load('0_RES_432x400_soil.npy')
-np.savetxt('soilprod_clean.csv', soilprod)
 soilprod[soilprod>=6] = 1.5 ### no soilprod >= 6, as in netlogo version
 soilprod[elev<=1] = 1.5 ### as in netlogo version
-np.savetxt('soilprod_modified.csv', soilprod)
 slope = np.load('0_RES_432x400_slope.npy')
 
 # smoothen soil productivity dataset

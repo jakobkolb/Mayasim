@@ -3,22 +3,21 @@ MODULE f90routines
       IMPLICIT NONE
 
       CONTAINS
-      SUBROUTINE f90sparsecentrality(A, IC, AA, JA, M, N, NNZ, centrality_out)
+      SUBROUTINE f90sparsecentrality(IC, AA, JA, M, N, NNZ, centrality_out)
                 INTEGER, INTENT(in)                     :: M, N, NNZ
-                INTEGER, DIMENSION(M,M), INTENT(in)     :: A
                 INTEGER, DIMENSION(N),   INTENT(in)     :: IC
                 INTEGER, DIMENSION(NNZ), INTENT(in)     :: AA, JA
 
                 INTEGER, DIMENSION(M),   INTENT(out)    :: centrality_out
                 !f2py depend(N) site, visited, x
-                INTEGER, DIMENSION(M)                   :: site, visited, x, dbsite
+                INTEGER, DIMENSION(M)                   :: site, visited, x
 
                 INTEGER :: i, j, k, l, k1, k2
 
                 centrality_out = 0
 
-               !$OMP PARALLEL DO PRIVATE(site, visited, x, l, k1, k2, k)
-               DO i = 1,M
+                !$OMP PARALLEL DO PRIVATE(site, visited, x, l, k1, k2, k)
+                DO i = 1,M
                        site = 0
                        site(i) = 1
                        visited = -1
@@ -37,8 +36,8 @@ MODULE f90routines
                                END DO
                                WHERE (site > 0 .AND. visited == -1) visited = 0
                        END DO
-               END DO
-               !$OMP END PARALLEL DO
+                END DO
+                !$OMP END PARALLEL DO
 
       END SUBROUTINE f90sparsecentrality
 
