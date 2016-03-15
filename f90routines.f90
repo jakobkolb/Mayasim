@@ -14,6 +14,18 @@ MODULE f90routines
 
                 INTEGER :: i, j, k, l, k1, k2
 
+            ! the algorithm cycles through each node
+            ! then applies the adjacency matrix to
+            ! the notes site until no new nodes can
+            ! be reached. The number of applications
+            ! is equal to the longest shortest path
+            ! through that node.
+            !
+            ! visited is equal to
+            ! -1 if node is unvisited
+            ! 0  if node is newly visited
+            ! 1  if node was previously visited
+
                 centrality_out = 0
 
                 !$OMP PARALLEL DO PRIVATE(site, visited, x, l, k1, k2, k)
@@ -40,6 +52,85 @@ MODULE f90routines
                 !$OMP END PARALLEL DO
 
       END SUBROUTINE f90sparsecentrality
+
+      SUBROUTINE f90sparsecomponents(IC, AA, JA, M, N, NNZ, components_out, degree_out)
+                INTEGER, INTENT(in)                     :: M, N, NNZ
+                INTEGER, DIMENSION(N),   INTENT(in)     :: IC
+                INTEGER, DIMENSION(NNZ), INTENT(in)     :: AA, JA
+
+                INTEGER, DIMENSION(M),   INTENT(out)    :: components_out
+                INTEGER, DIMENSION(M),   INTENT(out)    :: degree_out
+                !f2py intent(out) components_out
+                !f2py intent(out) degree_out
+                !f2py depend(N) site, visited, x
+                INTEGER, DIMENSION(M)                   :: site, visited, x, this_comp
+
+                INTEGER :: i, j, k, l, k1, k2, label, start_index
+
+                components_out = 0
+                degree_out = 0
+                visited = -1
+
+                !the algorithm starts at some node, that has degree>0
+                !and finds all nodes connected to it by applying 
+                !the adjacency matrix to the site vector as long as
+                !new nodes pop up (indicated by zeroes in the this_comp 
+                !vector). Then all nodes of this components are assigned
+                !the component size and the algorithm starts over at
+                !another unvisited node
+
+                ! visited and this_comp are equal to
+                ! -1 if node is unvisited
+                ! 0  if node is newly visited
+                ! 1  if node was previously visited
+
+                DO l = 1, M
+                       k1 = IC(l)
+                       k2 = IC(l + 1) - 1
+                       DO k = k1, k2
+                               degree_out(l) = degree_out(l) + AA(k)
+                       END DO
+                END DO
+
+                WHERE(degree_out == 0) visited = 1
+
+                DO WHILE (COUNT(visited == -1) > 0)
+                        label = label + 1
+                        this_comp = -1
+                        site = 0
+                        !find new unvisited node
+                        start_index = MINLOC(visited, 1, mask=visited.EQ.-1)
+                        site(start_index) = 1
+                        this_comp = this_comp + site
+                        !find all nodes connected to his unvisited node
+                        !by applying the adjacency matrix while new nodes
+                        !pop up in the component
+                        DO WHILE(COUNT(this_comp == 0) > 0)
+                                !mark previously visited nodes
+                                WHERE (this_comp == 0) this_comp = 1
+                                !apply the adjacency matrix in csr format
+                                x = site
+                                DO l = 1, M
+                                       k1 = IC(l)
+                                       k2 = IC(l + 1) - 1
+                                       site(l) = 0
+                                       DO k = k1, k2
+                                               site(l) = site(l) + AA(k)*x(JA(k))
+                                       END DO
+                                END DO
+                                !mark newly visited nodes in this_comp
+                                WHERE (site > 0 .AND. this_comp == -1) this_comp = 0
+                       END DO
+                       !mark nodes of this component as visited and 
+                       !asign the size of the component in their
+                       !entry in components_out
+                       WHERE(visited == -1 .AND. this_comp == 1)
+                               components_out = COUNT(this_comp == 1)
+                               visited = 1 
+                       END WHERE
+                END DO
+
+      END SUBROUTINE f90sparsecomponents
 
       SUBROUTINE f90centrality(a, N, centrality_out)
 

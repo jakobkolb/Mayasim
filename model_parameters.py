@@ -5,9 +5,9 @@ import numpy as np
 ### RUN PARAMETERS:
 
 #INITIAL NUMBER OF SETTLEMENTS
-settlement_start_number = 30  	# 30
-min_init_inhabitants = 1000	# 1000
-max_init_inhabitants = 2000	# 2000
+settlement_start_number = 300  	# 30
+min_init_inhabitants = 4000	# 1000
+max_init_inhabitants = 5000	# 2000
 
 timesteps = 325			# 325
 
@@ -90,7 +90,7 @@ r_trade = 6000. # 6000. wdight trade income
 birth_rate_parameter = 0.15
 
 # optionally make birth rate scale inversely with p.c. income
-popcontrol = True
+popcontrol = False
 max_birth_rate =  0.15 
 min_birth_rate = -0.2
 shift = 0.325

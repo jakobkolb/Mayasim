@@ -575,36 +575,59 @@ class Settlements:
         
     def get_comps(self):
         if debug: print 'get comps'
-        ### find components of trade network and their size
-        a = self.adjacency
-        N = self.number_settlements
-        site = np.zeros(N,dtype='float')
-        this_comp = np.zeros(N)
-        visited = np.zeros(N)
-        self.comp_size = np.zeros(N) 
-        # nodes with degree zero
-        degree = np.sum(a,axis=0)
-        visited[degree==0] = np.nan
         
-        label = 0
-        while np.any(visited == 0):
-            label += 1 # new label for new component
-            this_comp = np.zeros(N)
-            site = np.zeros(N)
-            start_index = np.where(visited==0)[0][0] #start at unvisited site
-            site[start_index] = 1
-            this_comp += site
-            while (np.any(this_comp > 0)): # hop to neighbours while new ones pop up
-                this_comp[this_comp>0] = np.nan            
-                site = a.dot(site)
-                this_comp += site
-            self.comp_size[np.isnan(this_comp)] = sum(np.isnan(this_comp))
-            visited += this_comp # finally, label this component as visited
-        self.degree = np.sum(self.adjacency,axis=0)
+        ### This Fortran implementation using sparse matrices has proven to be MUUUCH faster.
+
+        # convert adjacency matrix to compressed sparse row format
+        adjacency_CSR = sparse.csr_matrix(self.adjacency)
+
+        # extract data vector, row index vector and index pointer vector
+        A = adjacency_CSR.data
+        # add one to make indexing compatible to fortran (where indices start counting with 1)
+        JA = adjacency_CSR.indices+1
+        IC = adjacency_CSR.indptr+1
+
+        #determine length of data vectors
+        l_A = np.shape(A)[0]
+        l_IC = np.shape(IC)[0]
+        
+        # if data vector is not empty, pass data to fortran routine.
+        # else, just fill the centrality vector with ones.
+        if l_A> 0:
+            self.comp_size, self.degree = f90routines.f90sparsecomponents(IC, A, JA, self.number_settlements, l_IC, l_A)
+        elif l_A == 0:
+            self.comp_size, self.degree = np.zeros(l_IC-1, dtype=int), np.zeros(l_IC-1, dtype=int)
+
+
+       #### find components of trade network and their size
+       #a = self.adjacency
+       #N = self.number_settlements
+       #site = np.zeros(N,dtype='float')
+       #this_comp = np.zeros(N)
+       #visited = np.zeros(N)
+       #self.comp_size = np.zeros(N) 
+       ## nodes with degree zero
+       #self.degree = np.sum(a,axis=0)
+       #visited[self.degree==0] = np.nan
+       #
+       #label = 0
+       #while np.any(visited == 0):
+       #    label += 1 # new label for new component
+       #    this_comp = np.zeros(N)
+       #    site = np.zeros(N)
+       #    start_index = np.where(visited==0)[0][0] #start at unvisited site
+       #    site[start_index] = 1
+       #    this_comp += site
+       #    while (np.any(this_comp > 0)): # hop to neighbours while new ones pop up
+       #        this_comp[this_comp>0] = np.nan            
+       #        site = a.dot(site)
+       #        this_comp += site
+       #    self.comp_size[np.isnan(this_comp)] = sum(np.isnan(this_comp))
+       #    visited += this_comp # finally, label this component as visited
+
         return self.degree, self.comp_size
     def get_centrality(self):
         if debug: print 'get centrality'
-        print sum(sum(self.adjacency)) / self.number_settlements**2 * 100
 
         ### This Fortran implementation using sparse matrices has proven to be MUUUCH faster.
 
@@ -620,7 +643,7 @@ class Settlements:
         #determine length of data vectors
         l_A = np.shape(A)[0]
         l_IC = np.shape(IC)[0]
-        print l_A/2
+        print 'number of trade links:', sum(A)/2
         
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
