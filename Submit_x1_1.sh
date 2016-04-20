@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --qos=medium
-#SBATCH --job-name=MayaSim
-#SBATCH --output=ms_%j.out
-#SBATCH --error=ms_%j.err
+#SBATCH --job-name=Maya_1_1
+#SBATCH --output=ms_x1_1_%j.out
+#SBATCH --error=ms_x1_1_%j.err
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
 
@@ -16,5 +16,4 @@ echo "SLURM JOB ID: $SLURM_JOBID"
 echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
-srun -n $SLURM_NTASKS python Mayasim_testing.py
-
+srun -n $SLURM_NTASKS python mayasim_X1_income.py 1
