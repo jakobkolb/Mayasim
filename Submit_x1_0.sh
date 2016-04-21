@@ -5,6 +5,7 @@
 #SBATCH --error=ms_x1_0_%j.err
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=1
+#SBATCH --mem 4000
 
 module load compiler/intel/16.0.0
 module load hpc/2015 anaconda/2.3.0

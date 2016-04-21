@@ -10,6 +10,7 @@ from mayasim_parameters import *
 #are matching the available libraries of the particular
 #system before importing them.
 import subprocess
+
 subprocess.call("./f2py_compile.sh", shell=True)
 
 from f90routines import f90routines
@@ -104,7 +105,7 @@ class model:
 
         # crop_income specifies the way, crop income is calculated.
         # possible: 'mean' or 'sum'. default is mean.
-        crop_income = "mean"
+        self.crop_income_mode = "mean"
 
         self.number_settlements = number_settlements_In
         # distribute specified number of settlements on the map
@@ -533,9 +534,9 @@ class model:
         for city in np.where(self.population!=0)[0]:
             crops = bca[self.cropped_cells[city][0],self.cropped_cells[city][1]]
 ###EQUATION###################################################################
-            if self.crop_income == "mean":
+            if self.crop_income_mode == "mean":
                 self.crop_yield[city] = np.nanmean(crops[crops>0])
-            elif self.crop_income == "sum":
+            elif self.crop_income_mode == "sum":
                 self.crop_yield[city] = np.nansum(crops[crops>0])
 ###EQUATION###################################################################            
             
@@ -645,8 +646,6 @@ class model:
         es = np.zeros((self.rows,self.columns)) # ecosystem services
         bca = np.zeros((self.rows,self.columns))# benefit cost map for agriculture
 
-        os.mkdir(location)
-        location += "/"
 
         print "timeloop starts now"
 
