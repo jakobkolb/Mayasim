@@ -1,3 +1,8 @@
 *.pyc
+*.txt
 *.so
 output_data/*
+./*.npy
+*.odt
+cluster*
+*.md

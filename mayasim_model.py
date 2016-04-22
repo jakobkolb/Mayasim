@@ -149,8 +149,8 @@ class model:
         self.available = 0
        
         #Trade Variables
-        self.rank = [0]*number_settlements_In
         self.adjacency = np.zeros((number_settlements_In,number_settlements_In))
+        self.rank = [0]*number_settlements_In
         self.degree = [0]*number_settlements_In
         self.comp_size = [0]*number_settlements_In
         self.centrality = [0]*number_settlements_In
