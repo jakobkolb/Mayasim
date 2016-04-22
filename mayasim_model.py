@@ -112,21 +112,25 @@ class model:
         self.settlement_positions = self.land_patches[:,np.random.choice(
                 len(self.land_patches[1]),number_settlements_In).astype('int')]
                 
-        self.age = np.zeros((number_settlements_In))
+        self.age = [0]*number_settlements_In
         
         # demographic variables
-        self.birth_rate =  np.empty(number_settlements_In)
-        self.birth_rate.fill(birth_rate_parameter)
-        self.death_rate =  0.1 + 0.05 * np.random.random(number_settlements_In)
-        self.population =  np.random.randint(min_init_inhabitants,max_init_inhabitants,number_settlements_In).astype(float)
-        self.mig_rate =  np.zeros((number_settlements_In))
-        self.out_mig = np.zeros((number_settlements_In)).astype('int')
+        self.birth_rate = [birth_rate_parameter]*number_settlements_In
+        self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(number_settlements_In)]
+        self.population = list(np.random.randint(min_init_inhabitants,max_init_inhabitants,number_settlements_In).astype(float))
+        self.mig_rate =  [0.]*number_settlements_In
+        self.out_mig = [0]*number_settlements_In
         self.pioneer_set = []
         self.failed = 0
         
+        #index list for populated and abandoned cities
+        #used until removal of dead cities is implemented.
+        self.populated_cities = range(number_settlements_In)
+        self.dead_cities = []
+        
         # agricultural influence
-        self.number_cells_in_influence = np.zeros((number_settlements_In))
-        self.area_of_influence = np.zeros((number_settlements_In))
+        self.number_cells_in_influence = [0]*number_settlements_In
+        self.area_of_influence = [0.]*number_settlements_In
         self.coordinates = np.indices((self.rows,self.columns))
         self.cells_in_influence = [None]*number_settlements_In # will be a list of arrays 
 
@@ -134,26 +138,26 @@ class model:
         # for now, cropped cells are only the city positions.
         # first cropped cells are added at the first call of
         # get_cropped_cells()
-        for city in xrange(number_settlements_In):
-            self.cropped_cells[city] = np.array([[self.settlement_positions[0,city]],[self.settlement_positions[1,city]]])
+        for city in self.populated_cities:
+            self.cropped_cells[city] = [[self.settlement_positions[0,city]],[self.settlement_positions[1,city]]]
             
 
         self.occupied_cells = np.zeros((self.rows,self.columns))
-        self.number_cropped_cells = np.zeros((number_settlements_In))
-        self.crop_yield = np.zeros((number_settlements_In))
-        self.eco_benefit = np.zeros((number_settlements_In))
+        self.number_cropped_cells = [0]*number_settlements_In
+        self.crop_yield = [0.]*number_settlements_In
+        self.eco_benefit = [0.]*number_settlements_In
         self.available = 0
        
         #Trade Variables
-        self.rank = np.zeros((number_settlements_In))
+        self.rank = [0]*number_settlements_In
         self.adjacency = np.zeros((number_settlements_In,number_settlements_In))
-        self.degree = np.zeros((number_settlements_In))
-        self.comp_size = np.zeros((number_settlements_In))
-        self.centrality = np.zeros((number_settlements_In))
-        self.trade_income = np.zeros((number_settlements_In))
+        self.degree = [0]*number_settlements_In
+        self.comp_size = [0]*number_settlements_In
+        self.centrality = [0]*number_settlements_In
+        self.trade_income = [0]*number_settlements_In
         
         # total real income per capita
-        self.real_income_pc = np.zeros((number_settlements_In))
+        self.real_income_pc = [0]*number_settlements_In
 
     def update_precipitation(self,t):
         ### Modulates the initial precip dataset with a 24 timestep period.
@@ -286,21 +290,19 @@ class model:
         ### creates a list of cells for each city that are under its influence.
         ### these are the cells that are closer than population^0.8/60 (which is
         ### not explained any further...
-        self.area_of_influence = (self.population**0.8)/60.
-        for city in np.where(self.population!=0)[0]:
-
+        self.area_of_influence = [(x**0.8)/60. for x in self.population]
+        for city in self.populated_cities:
             stencil = (self.area*(
             (self.settlement_positions[0][city] - self.coordinates[0])**2 +
             (self.settlement_positions[1][city] - self.coordinates[1])**2)
             )    <= self.area_of_influence[city]**2
-
             self.cells_in_influence[city] = self.coordinates[:,stencil]
-        self.number_cells_in_influence = np.array([len(x[0]) for x in self.cells_in_influence])
-        for city in np.where(self.population==0)[0]:
+        self.number_cells_in_influence = [len(x[0]) for x in self.cells_in_influence]
+        for city in self.dead_cities:
             self.cells_in_influence[city] = np.array([[],[]],dtype='int')
-        self.number_cells_in_influence[self.population==0] = 0
+        self.number_cells_in_influence = [value if self.population[index] > 0 else 0 for index, value in enumerate(self.number_cells_in_influence)]
         
-        return self.cells_in_influence, self.number_cells_in_influence 
+        return
     
     def get_cropped_cells(self,bca):
         # updates the cropped cells for each city with positive population.
@@ -322,11 +324,10 @@ class model:
         occup = np.concatenate(self.cropped_cells,axis=1)
         for index in xrange(len(occup[0])):
             self.occupied_cells[occup[0,index],occup[1,index]] = 1
-        
-        self.age += 1
+        self.age = [x+1 for x in self.age]
         # for each settlement: which cells to crop ?
         # calculate utility first!
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
             distances = np.sqrt(self.area*(
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
                 (self.settlement_positions[1][city] - self.coordinates[1])**2))
@@ -362,66 +363,60 @@ class model:
             # 3.) abandon cells with utility <= 0
             ut_negative = utility[self.cropped_cells[city][0],self.cropped_cells[city][1]]<=0
             if ( np.sum(ut_negative) > 0):
-                abandon_ind = np.where(ut_negative)
-                coor = self.cropped_cells[city][:,abandon_ind]
+                abandon_ind = np.where(ut_negative)[0]
+                #coor = self.cropped_cells[city][:][abandon_ind]
+                coor = [[self.cropped_cells[city][0][ind_x] for ind_x in abandon_ind],[self.cropped_cells[city][1][ind_y] for ind_y in abandon_ind]]
                 self.cropped_cells[city] = np.delete(self.cropped_cells[city],abandon_ind,1)
                 self.occupied_cells[coor[0],coor[1]] = 0
                 abandoned += len(abandon_ind)
-
         
         # Finally, update list of lists containing cropped cells for each city with 
         # positive population. 
-        # a) Abandon all cells for cities with zero population:
-        for city in np.where(self.population==0)[0]:
-            self.cropped_cells[city] = np.array([[],[]],dtype='int')
-        self.number_cropped_cells[self.population==0] = 0
-        
-        # b) kill cities without croppe cells:
-        self.number_cropped_cells = np.array([len(x[0]) for x in self.cropped_cells])
-        self.population[self.number_cropped_cells==0] = 0 
-        return self.age, self.cropped_cells, self.number_cropped_cells, abandoned, sown, self.occupied_cells
+        self.number_cropped_cells = [len(self.cropped_cells[city][0]) for city in range(len(self.population))]
+
+        return abandoned, sown
 
     def get_pop_mig(self):
         # gives population and out-migration
-        print "number of settlements", sum(self.population!=0)
+        print "number of settlements", sum([1 if value>0 else 0 for index, value in enumerate(self.population)])
         
         # death rate correlates inversely with real income per capita
         
         death_rate_diffe = max_death_rate - min_death_rate
-        
-        self.death_rate = -death_rate_diffe * self.real_income_pc + max_death_rate
-        self.death_rate[self.death_rate<min_death_rate] = min_death_rate
-        self.death_rate[self.death_rate>max_death_rate] = max_death_rate
+
+        self.death_rate = [-death_rate_diffe * self.real_income_pc[i] + max_death_rate for i in range(len(self.real_income_pc))]
+        self.death_rate = [min_death_rate if value<min_death_rate else max_death_rate \
+                if value>max_death_rate else self.death_rate[i] \
+                for i, value in enumerate(self.death_rate)]
         
         # population control
         if popcontrol == True:
             self.birth_rate[self.population>=5000] = -(max_birth_rate - min_birth_rate)/10000. * self.population[self.population>=5000] + shift
-            
-        self.population += (self.birth_rate - self.death_rate)*self.population
-        self.failed += np.sum(self.population<=0)
-        self.population[self.population<=0] = 0
+        self.population = [int((1. + self.birth_rate[i] - self.death_rate[i])*self.population[i]) for i in range(len(self.population))]
+        self.failed = np.sum([1 if value>0 else 0 for i, value in enumerate(self.population)])
+        self.population = [value if value>0 else 0 for value in self.population]
         
         ### TODO: connect with other model functions
         estab_cost = 900
-        self.population[self.population<estab_cost*0.4] = 0
+        #self.population[self.population<estab_cost*0.4] = 0
+        self.population = [0 if value < estab_cost*0.4 else value for value in self.population]
         min_mig_rate = 0.
         max_mig_rate = 0.15
         mig_rate_diffe = max_mig_rate - min_mig_rate
         
         # outmigration rate also correlates inversely with real income per capita
-        self.mig_rate = -mig_rate_diffe * self.real_income_pc + max_mig_rate
-        self.mig_rate[self.mig_rate<min_mig_rate] = min_mig_rate
-        self.mig_rate[self.mig_rate>max_mig_rate] = max_mig_rate
-        self.out_mig = (self.mig_rate * self.population).astype('int')
-        self.out_mig[self.out_mig<0] = 0
+        self.mig_rate = [-mig_rate_diffe * self.real_income_pc[i] + max_mig_rate for i in range(len(self.real_income_pc))]
+        self.mig_rate = [min_mig_rate if value<min_mig_rate else max_mig_rate if value>max_mig_rate else value for value in self.mig_rate]
+        self.out_mig = [int(self.mig_rate[i]*self.population[i]) for i in range(len(self.population))]
+        self.out_mig = [value if value>0 else 0 for value in self.out_mig]
 
-        return self.population, self.out_mig, self.death_rate
+        return
         
     ### impact of sociosphere on ecosphere
     def update_pop_gradient(self):
         # pop gradient quantifies the disturbance of the forest by population
         self.pop_gradient = np.zeros((self.rows,self.columns))
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
             distance = np.sqrt(self.area*(
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
                 (self.settlement_positions[1][city] - self.coordinates[1])**2))
@@ -446,18 +441,15 @@ class model:
         ### depending on population ranks are assigned
         ### attention: ranks are reverted with respect to Netlogo MayaSim !
         ### 1 => 3 ; 2 => 2 ; 3 => 1 
-        self.rank = np.zeros(self.number_settlements)
         tresh_1 = 4000.
         tresh_2 = 7000.
         tresh_3 = 9500.
-        self.rank[self.population > tresh_1] = 1
-        self.rank[self.population > tresh_2] = 2
-        self.rank[self.population > tresh_3] = 3
-        return self.rank
+        self.rank = [1 if value > tresh_1 else 2 if value > tresh_2 else 3 if value > tresh_3 else 0 for index, value in enumerate(self.population)]
+        return
         
     def build_routes(self):
         ### cities with rank>0 are traders and establish links to neighbours
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
             if (self.rank[city] != 0 and self.degree[city] <= self.rank[city]):
                 
                 distances = (np.sqrt(self.area*((self.settlement_positions[0][city] - self.settlement_positions[0])**2 +
@@ -477,10 +469,9 @@ class model:
                     new_partner = np.nanargmax(self.population*nearby)
                     self.adjacency[city,new_partner] = self.adjacency[new_partner,city] = 1
                     
-        cut_links = self.population!=0
-        cut_links = np.expand_dims(cut_links,0)
+        cut_links = np.array([[True if value > 0 else False for value in self.population]])
         self.adjacency *= cut_links*cut_links.T
-        return self.adjacency, cut_links
+        return cut_links
         
     def get_comps(self):
         # convert adjacency matrix to compressed sparse row format
@@ -499,12 +490,12 @@ class model:
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
         if l_A> 0:
-            self.comp_size, self.degree = f90routines.f90sparsecomponents(IC, A, JA, self.number_settlements, l_IC, l_A)
+            tmp_comp_size, tmp_degree = f90routines.f90sparsecomponents(IC, A, JA, self.number_settlements, l_IC, l_A)
+            self.comp_size, self.degree = list(tmp_comp_size), list(tmp_degree)
         elif l_A == 0:
-            self.comp_size, self.degree = np.zeros(l_IC-1, dtype=int), np.zeros(l_IC-1, dtype=int)
+            self.comp_size, self.degree = [0]*(l_IC-1), [0]*(l_IC-1)
+        return
 
-
-        return self.degree, self.comp_size
     def get_centrality(self):
         # convert adjacency matrix to compressed sparse row format
         adjacency_CSR = sparse.csr_matrix(self.adjacency)
@@ -523,15 +514,16 @@ class model:
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
         if l_A> 0:
-            self.centrality = f90routines.f90sparsecentrality(IC, A, JA, self.number_settlements, l_IC, l_A)
+            tmp_centrality = f90routines.f90sparsecentrality(IC, A, JA, self.number_settlements, l_IC, l_A)
+            self.centrality = list(tmp_centrality) 
         elif l_A == 0:
-            self.centrality = np.ones(l_IC-1, dtype=int)
+            self.centrality = [1]*(l_IC-1)
 
-        return self.centrality
+        return
 
     def get_crop_income(self,bca):
         # agricultural benefit of cropping
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
             crops = bca[self.cropped_cells[city][0],self.cropped_cells[city][1]]
 ###EQUATION###################################################################
             if self.crop_income_mode == "mean":
@@ -539,37 +531,37 @@ class model:
             elif self.crop_income_mode == "sum":
                 self.crop_yield[city] = np.nansum(crops[crops>0])
 ###EQUATION###################################################################            
-            
-        self.crop_yield[np.isnan(self.crop_yield)] = 0
-        self.crop_yield[self.population==0] = 0
-        return self.crop_yield
+        self.crop_yield = [0 if np.isnan(self.crop_yield[index]) \
+                else self.crop_yield[index] for index in range(len(self.crop_yield))]
+        return
         
     def get_eco_income(self,es):
         # benefit from ecosystem services of cells in influence
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
 ###EQUATION###################################################################            
             self.eco_benefit[city] = np.nanmean(es[self.cells_in_influence[city]])
         self.eco_benefit[self.population==0] = 0
 ###EQUATION###################################################################            
-        return self.eco_benefit
+        return
 
     def get_trade_income(self):
 ###EQUATION###################################################################            
-        self.trade_income = 1./30.*( 1 + self.comp_size/self.centrality )**0.9
-        self.trade_income[self.trade_income>1] = 1
-        self.trade_income[self.trade_income<0] = 0
-        self.trade_income[self.degree==0] = 0
+        self.trade_income = [1./30.*( 1 + self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
+        self.trade_income = [1 if value>1 else 0 if (value<0 or self.degree[index]==0) else value for index, value in enumerate(self.trade_income)]
 ###EQUATION###################################################################            
-        return self.trade_income
+        return
     
     def get_real_income_pc(self):
         ### combine agricultural, ecosystem service and trade benefit
-        
 ###EQUATION###################################################################            
-        self.real_income_pc = r_bca * self.crop_yield + r_es * self.eco_benefit + r_trade * self.trade_income
-        self.real_income_pc = self.real_income_pc / self.population
+        self.real_income_pc = [(r_bca * self.crop_yield[index] \
+                + r_es * self.eco_benefit[index] \
+                + r_trade * self.trade_income[index]) \
+                /self.population[index] \
+                if value > 0 else 0 \
+                for index, value in enumerate(self.population)]
 ###EQUATION###################################################################            
-        return self.real_income_pc
+        return
        
     def migration(self,es):
         ### if outmigration rate exceeds threshold, found new settlement
@@ -578,7 +570,7 @@ class model:
         influenced_cells = np.concatenate(self.cells_in_influence,axis=1)
         vacant_lands[influenced_cells[0],influenced_cells[1]] = 0
         vacant_lands = np.asarray(np.where(vacant_lands == 1))
-        for city in np.where(self.population!=0)[0]:
+        for city in self.populated_cities:
             if (self.out_mig[city] > 400 and np.random.rand() <= 0.5 and len(vacant_lands[0])>=75):
                 
                 mig_pop = self.out_mig[city]
@@ -600,39 +592,75 @@ class model:
                     np.delete(vacant_lands,index,1)
         
         
+    def kill_cities(self):
+
+        dead_city_indices = [index for index in range(len(self.population)) if (self.population[index] <= 0 or len(self.cropped_cells[index][0])<=0)]
+
+        #remove entries from variables
+        #simple lists that can be deleted elementwise
+        for index in sorted(dead_city_indices, reverse=True):
+            self.number_settlements -= 1
+            del self.age[index]
+            del self.birth_rate[index]
+            del self.death_rate[index]
+            del self.population[index]
+            del self.mig_rate[index]
+            del self.out_mig[index]
+            del self.number_cells_in_influence[index]
+            del self.area_of_influence[index]
+            del self.number_cropped_cells[index]
+            del self.crop_yield[index]
+            del self.eco_benefit[index]
+            del self.rank[index]
+            del self.degree[index]
+            del self.comp_size[index]
+            del self.centrality[index]
+            del self.trade_income[index]
+            del self.real_income_pc[index]
+            del self.cells_in_influence[index]
+            del self.cropped_cells[index]
+        
+        #special cases:
+        self.settlement_positions = np.delete(self.settlement_positions, dead_city_indices, axis=1)
+        self.adjacency = np.delete(np.delete(self.adjacency, dead_city_indices, axis=0),dead_city_indices, axis=1)
+
+
+        #update list of indices for populated and dead cities
+
+        # a) update list of populated cities
+        self.populated_cities = [index for index, value in enumerate(self.population) if value>0]
+
+        # b) update list of dead cities
+        self.dead_cities = [index for index, value in enumerate(self.population) if value==0]
+
+        return
+
     def newcity(self,a,b,mig_pop):
         ### extend all variables to include new city
         self.number_settlements += 1
         self.settlement_positions = np.append(self.settlement_positions,[[a],[b]],1)
-        
-        self.age = np.append(self.age,0)
-        
-        self.birth_rate = np.append(self.birth_rate,birth_rate_parameter)
-        self.death_rate = np.append(self.death_rate,0.1 + 0.05 * np.random.rand())
-        self.population = np.append(self.population,mig_pop)
-        self.mig_rate = np.append(self.mig_rate,0)
-        self.out_mig = np.append(self.out_mig,0)
-        
-        self.number_cells_in_influence = np.append(self.number_cells_in_influence,0)
-        self.area_of_influence = np.append(self.area_of_influence,0)
-        self.cells_in_influence.append(np.array(([a],[b])))
-        
-        self.cropped_cells.append(np.array([[a],[b]]))
-
-        self.number_cropped_cells = np.append(self.number_cropped_cells,1)
-        self.crop_yield = np.append(self.crop_yield,0)
-        self.eco_benefit = np.append(self.eco_benefit,0)
-    
-        self.rank = np.append(self.rank,0)
+        self.age.append(0)
+        self.birth_rate.append(birth_rate_parameter)
+        self.death_rate.append(0.1 + 0.05 * np.random.rand())
+        self.population.append(mig_pop)
+        self.mig_rate.append(0)
+        self.out_mig.append(0)
+        self.number_cells_in_influence.append(0)
+        self.area_of_influence.append(0)
+        self.cells_in_influence.append([[a],[b]])
+        self.cropped_cells.append([[a],[b]])
+        self.number_cropped_cells.append(1)
+        self.crop_yield.append(0)
+        self.eco_benefit.append(0)
+        self.rank.append(0)
         N = len(self.adjacency)
         self.adjacency = np.append(self.adjacency,[[0]*N],0)
         self.adjacency = np.append(self.adjacency,[[0]]*(N+1),1)
-        self.degree = np.append(self.degree,0)
-        self.comp_size = np.append(self.comp_size,0)
-        self.centrality = np.append(self.centrality,0)
-        self.trade_income = np.append(self.trade_income,0)
-        
-        self.real_income_pc = np.append(self.real_income_pc,0)
+        self.degree.append(0)
+        self.comp_size.append(0)
+        self.centrality.append(0)
+        self.trade_income.append(0)
+        self.real_income_pc.append(0)
 
     def run(self, t_max, location):
 
@@ -664,22 +692,21 @@ class model:
             bca = self.benefit_cost(ag)
             
             # society
-            cells_in_influence, number_cells_in_influence = self.get_cells_in_influence()
-            age, cropped_cells, number_cropped_cells, abandoned, sown, occupied = self.get_cropped_cells(bca)
-            crop_yield = self.get_crop_income(bca)
-            eco_benefit = self.get_eco_income(es)
-            population, out_mig, death_rate = self.get_pop_mig()
+            self.get_cells_in_influence()
+            abandoned, sown = self.get_cropped_cells(bca)
+            self.get_crop_income(bca)
+            self.get_eco_income(es)
             self.evolve_soil_deg()
             self.update_pop_gradient()
-            rank = self.get_rank()
-            adjacency, cl = self.build_routes()
-            degree, comp_size = self.get_comps()
-            centrality = self.get_centrality()
-            trade_income = self.get_trade_income()
-            real_income_pc = self.get_real_income_pc()
-            number_settlements = self.number_settlements
-            settlement_positions = self.settlement_positions
+            self.get_rank()
+            cl = self.build_routes()
+            self.get_comps()
+            self.get_centrality()
+            self.get_trade_income()
+            self.get_real_income_pc()
+            self.get_pop_mig()
             self.migration(es)
+            self.kill_cities()
 
             ### save variables of interest      
             np.save(location+"rain_%d.npy"%(t,),self.spaciotemporal_precipitation)
@@ -704,28 +731,28 @@ class model:
                 stacked = npzfile['stacked_array']
                 return np.split(stacked, idx, axis=axis)
             
-            save_stacked_array(location+"cells_in_influence_%d"%(t,),cells_in_influence,axis=1)
-            np.save(location+"number_cells_in_influence_%d.npy"%(t,),number_cells_in_influence)
-            save_stacked_array(location+"cropped_cells_%d"%(t,),cropped_cells,axis=1)
-            np.save(location+"number_cropped_cells_%d.npy"%(t,),number_cropped_cells)
+            save_stacked_array(location+"cells_in_influence_%d"%(t,),self.cells_in_influence,axis=1)
+            np.save(location+"number_cells_in_influence_%d.npy"%(t,),self.number_cells_in_influence)
+            save_stacked_array(location+"cropped_cells_%d"%(t,),self.cropped_cells,axis=1)
+            np.save(location+"number_cropped_cells_%d.npy"%(t,),self.number_cropped_cells)
             np.save(location+"abnd_sown_%d.npy"%(t,),np.array((abandoned,sown)))
-            np.save(location+"crop_yield_%d.npy"%(t,),crop_yield)
-            np.save(location+"eco_benefit_pc_%d.npy"%(t,),eco_benefit)
-            np.save(location+"real_income_pc_%d.npy"%(t,),real_income_pc)
-            np.save(location+"population_%d.npy"%(t,),population)
-            np.save(location+"out_mig_%d.npy"%(t,),out_mig)
-            np.save(location+"death_rate_%d.npy"%(t,),death_rate)
+            np.save(location+"crop_yield_%d.npy"%(t,),self.crop_yield)
+            np.save(location+"eco_benefit_pc_%d.npy"%(t,),self.eco_benefit)
+            np.save(location+"real_income_pc_%d.npy"%(t,),self.real_income_pc)
+            np.save(location+"population_%d.npy"%(t,),self.population)
+            np.save(location+"out_mig_%d.npy"%(t,),self.out_mig)
+            np.save(location+"death_rate_%d.npy"%(t,),self.death_rate)
             np.save(location+"soil_deg_%d.npy"%(t,),self.soil_deg)
 
             np.save(location+"pop_gradient_%d.npy"%(t,),self.pop_gradient)
-            np.save(location+"adjacency_%d.npy"%(t,),adjacency)
-            np.save(location+"degree_%d.npy"%(t,),degree)
-            np.save(location+"comp_size_%d.npy"%(t,),comp_size)
-            np.save(location+"centrality_%d.npy"%(t,),centrality)
-            np.save(location+"trade_income_%d.npy"%(t,),trade_income)
+            np.save(location+"adjacency_%d.npy"%(t,),self.adjacency)
+            np.save(location+"degree_%d.npy"%(t,),self.degree)
+            np.save(location+"comp_size_%d.npy"%(t,),self.comp_size)
+            np.save(location+"centrality_%d.npy"%(t,),self.centrality)
+            np.save(location+"trade_income_%d.npy"%(t,),self.trade_income)
            
-            np.save(location+"number_settlements_%d.npy"%(t,),number_settlements)
-            np.save(location+"settlement_positions_%d.npy"%(t,),settlement_positions) 
+            np.save(location+"number_settlements_%d.npy"%(t,),self.number_settlements)
+            np.save(location+"settlement_positions_%d.npy"%(t,),self.settlement_positions) 
 
 if __name__ == "__main__":
 
@@ -735,7 +762,9 @@ if __name__ == "__main__":
     ### define saving location
     comment = "testing_version"
     now = datetime.datetime.now()
-    location = "output_data/"+now.strftime("%d_%m_%H-%M-%Ss")+"_Output_"+comment
+    location = "output_data/"+now.strftime("%d_%m_%H-%M-%Ss")+"_Output_"+comment + '/'
+    os.makedirs(location)
+
 
     ### run model
     model.run(timesteps, location)

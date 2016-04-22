@@ -466,8 +466,11 @@ class Settlements:
                     new_partner = np.nanargmax(self.population*nearby)
                     self.adjacency[city,new_partner] = self.adjacency[new_partner,city] = 1
                     
+        print 'what does this cut_links thing look alike?!'
         cut_links = self.population!=0
+        print cut_links
         cut_links = np.expand_dims(cut_links,0)
+        print cut_links
         self.adjacency *= cut_links*cut_links.T
         return self.adjacency, cut_links
         
