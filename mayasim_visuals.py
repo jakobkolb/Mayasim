@@ -1,6 +1,8 @@
 import numpy as np
 import sys
 import os
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm, Normalize
 import matplotlib.gridspec as gridspec
@@ -13,15 +15,20 @@ print sys.argv
 N = int(sys.argv[2])
 verbose = True
 
-data_directory = sys.argv[1]+ '/'
-picture_directory = sys.argv[1] + '_plots/'
+data_directory = sys.argv[1]
+print data_directory
+picture_directory = sys.argv[1].rstrip('/') + '_plots/'
 
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
 
 ################################################################################
+number_settlements = 0
+for i in range(1,N):
+    tmp = np.load(data_directory+"number_settlements_%03d.npy"%(i,))
+    if tmp>number_settlements : number_settlements = tmp
+print 'max number of settlements is: ', number_settlements
 
-number_settlements = np.load(data_directory+"number_settlements_"+str(N)+".npy")
 
 ### initialize variables to track overall evolution
 rain_evo = np.zeros((3,N))
@@ -50,7 +57,7 @@ number_failed_cities_evo = np.zeros((N))
 soil_deg_evo = np.zeros((3,N))
 ag_pop_density_evo = np.zeros((N,number_settlements)) 
 
-bca = np.load(data_directory+"bca_1.npy")
+bca = np.load(data_directory+"bca_001.npy")
 ocean = np.empty(bca.shape)
 ocean[:] = 1
 ocean[np.isfinite(bca)]=np.nan
@@ -76,31 +83,31 @@ def load_stacked_arrays(fname, axis=0):
 
 ### define functions to save a map of single timestep
 def show_rain(t):
-    rain = np.load(data_directory+"rain_%d.npy"%(t,))    
+    rain = np.load(data_directory+"rain_%03d.npy"%(t,))    
     fig = plt.figure()
     plt.imshow(rain)
     plt.colorbar()
     plt.title("rain, t="+str(t))
-    fig.savefig(picture_directory+"rain_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"rain_%03d.png"%(t,),dpi=200)
     plt.close(fig)
  
 def show_npp(t):
-    npp = np.load(data_directory+"npp_%d.npy"%(t,))
+    npp = np.load(data_directory+"npp_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(npp)
     plt.colorbar()
     plt.title("npp, t="+str(t))
-    fig.savefig(picture_directory+"npp_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"npp_%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_forest(t):
-    forest = np.load(data_directory+"forest_%d.npy"%(t,))
+    forest = np.load(data_directory+"forest_%03d.npy"%(t,))
     fig = plt.figure()
 
     cmap = ListedColormap(['white', '#FF9900', '#66FF33','#336600'])
     norm = Normalize(vmin=0,vmax=3)
     im3 = plt.imshow(forest, cmap=cmap, norm=norm, interpolation='none')
-    timestep = "%d"%(t,)
+    timestep = "%03d"%(t,)
     plt.title('forest, t = '+timestep)
     cbar = plt.colorbar()
     cbar.ax.get_yaxis().set_ticks([])
@@ -109,63 +116,63 @@ def show_forest(t):
     cbar.ax.get_yaxis().labelpad = 15
     cbar.ax.set_ylabel('forest state', rotation=270)
     plt.title("forest, t="+str(t))
-    fig.savefig(picture_directory+"forest%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"forest%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_wf(t):
-    wf = np.load(data_directory+"waterflow_%d.npy"%(t,))
+    wf = np.load(data_directory+"waterflow_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(wf)
     plt.colorbar()
     plt.title("waterflow, t="+str(t))
-    fig.savefig(picture_directory+"waterflow_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"waterflow_%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_ag(t):
-    ag = np.load(data_directory+"AG_%d.npy"%(t,))
+    ag = np.load(data_directory+"AG_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(ag,vmin=0)
     plt.colorbar()
     plt.title("agricultural productivity, t="+str(t))
-    fig.savefig(picture_directory+"AG_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"AG_%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_es(t):
-    es = np.load(data_directory+"ES_%d.npy"%(t,))
+    es = np.load(data_directory+"ES_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(es)
     plt.colorbar()
     plt.title("ecosystem services, t="+str(t))
-    fig.savefig(picture_directory+"es_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"es_%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_bca(t):
-    bca = np.load(data_directory+"bca_%d.npy"%(t,))
+    bca = np.load(data_directory+"bca_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(bca-900,cmap="YlOrBr",vmin=0,interpolation='None')
     plt.colorbar()
     plt.imshow(np.ma.masked_where(bca>900,bca),cmap=ListedColormap(['#2AF10A']),interpolation='None')
     plt.title("benefit cost assessment, t="+str(t))
-    fig.savefig(picture_directory+"bca_%d.png"%(t,),dpi=300,interpolation='None')
+    fig.savefig(picture_directory+"bca_%03d.png"%(t,),dpi=300,interpolation='None')
     plt.close(fig)
    
 def show_soil_deg(t):
-    soil_deg = np.load(data_directory+"soil_deg_%d.npy"%(t,))
+    soil_deg = np.load(data_directory+"soil_deg_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(soil_deg) #*(np.isfinite(bca))
     plt.colorbar()
     plt.title("soil degradation, t="+str(t))
-    fig.savefig(picture_directory+"soil_deg_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"soil_deg_%03d.png"%(t,),dpi=200)
     plt.close(fig)
     
 def show_bca_influence_cropped(t):
-    bca = np.load(data_directory+"bca_%d.npy"%(t,))
+    bca = np.load(data_directory+"bca_%03d.npy"%(t,))
     shape  = bca.shape
     # number_settlements = np.load(data_directory+"number_settlements.npy")
-    settlement_positions = np.load(data_directory+"settlement_positions_%d.npy"%(t,))
-    population = np.load(data_directory+"population_%d.npy"%(t,))
-    cells_in_influence = load_stacked_arrays(data_directory+"cells_in_influence_%d.npz"%(t,),axis=1)
-    cropped_cells = load_stacked_arrays(data_directory+"cropped_cells_%d.npz"%(t,),axis=1)
+    settlement_positions = np.load(data_directory+"settlement_positions_%03d.npy"%(t,))
+    population = np.load(data_directory+"population_%03d.npy"%(t,))
+    cells_in_influence = load_stacked_arrays(data_directory+"cells_in_influence_%03d.npz"%(t,),axis=1)
+    cropped_cells = load_stacked_arrays(data_directory+"cropped_cells_%03d.npz"%(t,),axis=1)
     fig = plt.figure(figsize=(10,10))
     rows, columns = bca.shape
     #plt.imshow(bca,cmap="Blues",interpolation="nearest",extent=[0,columns,rows,0],vmin=0)
@@ -201,15 +208,15 @@ def show_bca_influence_cropped(t):
     plt.imshow(failed_cities,cmap=cmap4,interpolation='None')
     count =  len(settlement_positions[1])
     plt.title("settlement influence and cropped cells, #cities: "+str(count)+", t="+str(t))    
-    fig.savefig(picture_directory+"influence_cropped_b_%d.png"%(t,),dpi=300,interpolation=None)
+    fig.savefig(picture_directory+"influence_cropped_b_%03d.png"%(t,),dpi=300,interpolation=None)
     plt.close(fig)
     
 def show_network(t):
-    population = np.load(data_directory+"population_%d.npy"%(t,))
-    settlement_positions = np.load(data_directory+"settlement_positions_%d.npy"%(t,))
-    adjacency = np.load(data_directory+"adjacency_%d.npy"%(t,))
-    centrality = np.load(data_directory+"centrality_%d.npy"%(t,))
-    #bca = np.load(data_directory+"bca_%d.npy"%(t,))
+    population = np.load(data_directory+"population_%03d.npy"%(t,))
+    settlement_positions = np.load(data_directory+"settlement_positions_%03d.npy"%(t,))
+    adjacency = np.load(data_directory+"adjacency_%03d.npy"%(t,))
+    centrality = np.load(data_directory+"centrality_%03d.npy"%(t,))
+    #bca = np.load(data_directory+"bca_%03d.npy"%(t,))
     x = settlement_positions[0]+0.5
     y = settlement_positions[1]+0.5
     labels = np.arange(len(settlement_positions[0]))
@@ -238,17 +245,17 @@ def show_network(t):
     plt.ylim(bca.shape[0],0)
     
     plt.title("trade network, t="+str(t))
-    fig.savefig(picture_directory+"trade_network_%d.png"%(t,),dpi=300,interpolation=None)
+    fig.savefig(picture_directory+"trade_network_%03d.png"%(t,),dpi=300,interpolation=None)
     plt.close(fig)    
     
    
 def show_pop_gradient(t):
-    pop_gradient = np.load(data_directory+"pop_gradient_%d.npy"%(t,))
+    pop_gradient = np.load(data_directory+"pop_gradient_%03d.npy"%(t,))
     fig = plt.figure()
     plt.imshow(pop_gradient) #*(np.isfinite(bca))
     plt.colorbar()
     plt.title("population gradient, t="+str(t))
-    fig.savefig(picture_directory+"pop_grad_%d.png"%(t,),dpi=200)
+    fig.savefig(picture_directory+"pop_grad_%03d.png"%(t,),dpi=200)
     plt.close(fig)   
 
 ################################################################################
@@ -256,119 +263,119 @@ def show_pop_gradient(t):
 # define functions recording time evolution of certain variables
 
 def write_rain_evo(t):
-    step = np.load(data_directory+"rain_%d.npy"%(t,))    
+    step = np.load(data_directory+"rain_%03d.npy"%(t,))    
     rain_evo[0][t-1] = np.nanmean(step)
     rain_evo[1][t-1] = np.percentile(step[np.isfinite(step)],90)
     rain_evo[2][t-1] = np.percentile(step[np.isfinite(step)],10)
     
 def write_npp_evo(t):
-    step = np.load(data_directory+"npp_%d.npy"%(t,))
+    step = np.load(data_directory+"npp_%03d.npy"%(t,))
     npp_evo[0][t-1] = np.nanmean(step)
     npp_evo[1][t-1] = np.percentile(step[np.isfinite(step)],90)
     npp_evo[2][t-1] = np.percentile(step[np.isfinite(step)],10)
     
 def write_forest_evo(t):
-    step = np.load(data_directory+"forest_%d.npy"%(t,))
+    step = np.load(data_directory+"forest_%03d.npy"%(t,))
     forest_evo[2][t-1] = len(step[step == 3])
     forest_evo[1][t-1] = len(step[step == 2])
     forest_evo[0][t-1] = len(step[step == 1])
     
 def write_wf_evo(t):
-    step = np.load(data_directory+"waterflow_%d.npy"%(t,))
+    step = np.load(data_directory+"waterflow_%03d.npy"%(t,))
     wf_evo[0][t-1] = np.nanmean(step)
     wf_evo[1][t-1] = np.percentile(step[np.isfinite(step)],90)
     wf_evo[2][t-1] = np.percentile(step[np.isfinite(step)],10)
     
 def write_ag_evo(t):
-    step = np.load(data_directory+"AG_%d.npy"%(t,))
+    step = np.load(data_directory+"AG_%03d.npy"%(t,))
     ag_evo[0][t-1] = np.nanmean(step)
     ag_evo[1][t-1] = np.percentile(step[np.isfinite(step)],90)
     ag_evo[2][t-1] = np.percentile(step[np.isfinite(step)],10)
     
 def write_es_evo(t):
-    step = np.load(data_directory+"ES_%d.npy"%(t,))
+    step = np.load(data_directory+"ES_%03d.npy"%(t,))
     es_evo[0][t-1] = np.nanmean(step)
     es_evo[1][t-1] = np.percentile(step[np.isfinite(step)],90)
     es_evo[2][t-1] = np.percentile(step[np.isfinite(step)],10)
     
 def write_bca_evo(t):
-    step = np.load(data_directory+"bca_%d.npy"%(t,))
+    step = np.load(data_directory+"bca_%03d.npy"%(t,))
     bca_evo[0][t-1] = np.nanmean(step[step>0]) # include only positive values of bca
     bca_evo[1][t-1] = np.percentile((step[step>0]),90)
     bca_evo[2][t-1] = np.percentile((step[step>0]),10)
     
 def write_cells_in_influence_evo(t):
-    step = np.load(data_directory+"number_cells_in_influence_%d.npy"%(t,))
+    step = np.load(data_directory+"number_cells_in_influence_%03d.npy"%(t,))
     cells_in_influence_evo[t-1,:len(step)] = step
     
 def write_cropped_cells_evo(t):
-    step = np.load(data_directory+"number_cropped_cells_%d.npy"%(t,))
+    step = np.load(data_directory+"number_cropped_cells_%03d.npy"%(t,))
     cropped_cells_evo[t-1,:len(step)] += step
     
 def write_crop_yield_evo(t):
-    step = np.load(data_directory+"crop_yield_%d.npy"%(t,))
+    step = np.load(data_directory+"crop_yield_%03d.npy"%(t,))
     crop_yield_evo[t-1,:len(step)] += step
     
 def write_eco_benefit_evo(t):
-    step = np.load(data_directory+"eco_benefit_pc_%d.npy"%(t,))
+    step = np.load(data_directory+"eco_benefit_pc_%03d.npy"%(t,))
     eco_benefit_evo[t-1,:len(step)] += step
 
 def write_abnd_sown_evo(t):
-    step = np.load(data_directory+"abnd_sown_%d.npy"%(t,))
+    step = np.load(data_directory+"abnd_sown_%03d.npy"%(t,))
     abnd_sown_evo[t-1,:len(step)] = step
     
 def write_real_income_pc_evo(t):
-    step = np.load(data_directory+"real_income_pc_%d.npy"%(t,))
+    step = np.load(data_directory+"real_income_pc_%03d.npy"%(t,))
     real_income_pc_evo[t-1,:len(step)] = step
     
 def write_population_evo(t):
-    step = np.load(data_directory+"population_%d.npy"%(t,))
+    step = np.load(data_directory+"population_%03d.npy"%(t,))
     population_evo[t-1,:len(step)] = step
  
 def write_death_rate_evo(t):
-    step = np.load(data_directory+"death_rate_%d.npy"%(t,))
+    step = np.load(data_directory+"death_rate_%03d.npy"%(t,))
     death_rate_evo[t-1,:len(step)] = step
     
 def write_out_mig_evo(t):
-    step = np.load(data_directory+"out_mig_%d.npy"%(t,))
+    step = np.load(data_directory+"out_mig_%03d.npy"%(t,))
     out_mig_evo[t-1,:len(step)] = step
     
 def write_comp_size_evo(t):
-    step = np.load(data_directory+"comp_size_%d.npy"%(t,))
+    step = np.load(data_directory+"comp_size_%03d.npy"%(t,))
     comp_size_evo[t-1,:len(step)] = step
 
 def write_centrality_evo(t):
-    step = np.load(data_directory+"centrality_%d.npy"%(t,))
+    step = np.load(data_directory+"centrality_%03d.npy"%(t,))
     centrality_evo[t-1,:len(step)] = step
     
 def write_trade_income_evo(t):
-    step = np.load(data_directory+"trade_income_%d.npy"%(t,))
-    #step = np.load(data_directory+"trade_strength_%d.npy"%(t,))
+    step = np.load(data_directory+"trade_income_%03d.npy"%(t,))
+    #step = np.load(data_directory+"trade_strength_%03d.npy"%(t,))
     trade_income_evo[t-1,:len(step)] = step
      
 def write_soil_deg_evo(t):
-    step = np.load(data_directory+"soil_deg_%d.npy"%(t,))
+    step = np.load(data_directory+"soil_deg_%03d.npy"%(t,))
     soil_deg_evo[0][t-1] = np.nanmean(step[np.isfinite(bca)])
     soil_deg_evo[1][t-1] = np.percentile(step[np.isfinite(bca)],90)
     soil_deg_evo[2][t-1] = np.percentile(step[np.isfinite(bca)],10)
     
 def write_number_tradelinks_evo(t):
-    step = np.load(data_directory+"degree_%d.npy"%(t,))
+    step = np.load(data_directory+"degree_%03d.npy"%(t,))
     number_tradelinks_evo[t-1] = sum(step)/2
     
 def write_degree_evo(t):
-    step = np.load(data_directory+"degree_%d.npy"%(t,))
+    step = np.load(data_directory+"degree_%03d.npy"%(t,))
     degree_evo[t-1,:len(step)] = step
     
 def write_number_settlements_evo(t):
-    population = np.load(data_directory+"population_%d.npy"%(t,))
+    population = np.load(data_directory+"population_%03d.npy"%(t,))
     number_settlements_evo[t-1] = np.sum(population!=0)
     number_failed_cities_evo[t-1] = np.sum(population==0)
  
 def write_ag_pop_density_evo(t):
     area = 5.10864490603363
-    population = np.load(data_directory+"population_%d.npy"%(t,))
-    number_cropped_cells = np.load(data_directory+"number_cropped_cells_%d.npy"%(t,))
+    population = np.load(data_directory+"population_%03d.npy"%(t,))
+    number_cropped_cells = np.load(data_directory+"number_cropped_cells_%03d.npy"%(t,))
     a = population/(number_cropped_cells * area)
     ag_pop_density_evo[t-1,:len(population)] = a
 ################################################################################

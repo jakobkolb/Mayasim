@@ -90,7 +90,7 @@ r_trade = 6000. # 6000. wdight trade income
 birth_rate_parameter = 0.15
 
 # optionally make birth rate scale inversely with p.c. income
-popcontrol = False
+population_control_parameter = True
 max_birth_rate =  0.15 
 min_birth_rate = -0.2
 shift = 0.325

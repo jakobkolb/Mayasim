@@ -115,6 +115,7 @@ class model:
         self.age = [0]*number_settlements_In
         
         # demographic variables
+        self.population_control = population_control_parameter
         self.birth_rate = [birth_rate_parameter]*number_settlements_In
         self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(number_settlements_In)]
         self.population = list(np.random.randint(min_init_inhabitants,max_init_inhabitants,number_settlements_In).astype(float))
@@ -298,9 +299,6 @@ class model:
             )    <= self.area_of_influence[city]**2
             self.cells_in_influence[city] = self.coordinates[:,stencil]
         self.number_cells_in_influence = [len(x[0]) for x in self.cells_in_influence]
-        for city in self.dead_cities:
-            self.cells_in_influence[city] = np.array([[],[]],dtype='int')
-        self.number_cells_in_influence = [value if self.population[index] > 0 else 0 for index, value in enumerate(self.number_cells_in_influence)]
         
         return
     
@@ -390,15 +388,13 @@ class model:
                 for i, value in enumerate(self.death_rate)]
         
         # population control
-        if popcontrol == True:
-            self.birth_rate[self.population>=5000] = -(max_birth_rate - min_birth_rate)/10000. * self.population[self.population>=5000] + shift
-        self.population = [int((1. + self.birth_rate[i] - self.death_rate[i])*self.population[i]) for i in range(len(self.population))]
-        self.failed = np.sum([1 if value>0 else 0 for i, value in enumerate(self.population)])
+        if self.population_control == True:
+            self.birth_rate = [-(max_birth_rate - min_birth_rate)/10000. * value + shift if value > 5000 else birth_rate_parameter for value in self.population]
+        self.population = [int((1. + self.birth_rate[i] - self.death_rate[i])*value) for i, value in enumerate(self.population)]
         self.population = [value if value>0 else 0 for value in self.population]
         
         ### TODO: connect with other model functions
         estab_cost = 900
-        #self.population[self.population<estab_cost*0.4] = 0
         self.population = [0 if value < estab_cost*0.4 else value for value in self.population]
         min_mig_rate = 0.
         max_mig_rate = 0.15
@@ -600,6 +596,7 @@ class model:
         #simple lists that can be deleted elementwise
         for index in sorted(dead_city_indices, reverse=True):
             self.number_settlements -= 1
+            self.failed += 1
             del self.age[index]
             del self.birth_rate[index]
             del self.death_rate[index]
@@ -709,13 +706,13 @@ class model:
             self.kill_cities()
 
             ### save variables of interest      
-            np.save(location+"rain_%d.npy"%(t,),self.spaciotemporal_precipitation)
-            np.save(location+"npp_%d.npy"%(t,),npp)
-            np.save(location+"forest_%d.npy"%(t,),self.forest_state)
-            np.save(location+"waterflow_%d.npy"%(t,),wf)
-            np.save(location+"AG_%d.npy"%(t,),ag)
-            np.save(location+"ES_%d.npy"%(t,),es)
-            np.save(location+"bca_%d.npy"%(t,),bca)
+            np.save(location+"rain_%03d.npy"%(t,),self.spaciotemporal_precipitation)
+            np.save(location+"npp_%03d.npy"%(t,),npp)
+            np.save(location+"forest_%03d.npy"%(t,),self.forest_state)
+            np.save(location+"waterflow_%03d.npy"%(t,),wf)
+            np.save(location+"AG_%03d.npy"%(t,),ag)
+            np.save(location+"ES_%03d.npy"%(t,),es)
+            np.save(location+"bca_%03d.npy"%(t,),bca)
             
             def stack_ragged(array_list, axis=0):
                 lengths = [np.shape(a)[axis] for a in array_list]
@@ -731,28 +728,28 @@ class model:
                 stacked = npzfile['stacked_array']
                 return np.split(stacked, idx, axis=axis)
             
-            save_stacked_array(location+"cells_in_influence_%d"%(t,),self.cells_in_influence,axis=1)
-            np.save(location+"number_cells_in_influence_%d.npy"%(t,),self.number_cells_in_influence)
-            save_stacked_array(location+"cropped_cells_%d"%(t,),self.cropped_cells,axis=1)
-            np.save(location+"number_cropped_cells_%d.npy"%(t,),self.number_cropped_cells)
-            np.save(location+"abnd_sown_%d.npy"%(t,),np.array((abandoned,sown)))
-            np.save(location+"crop_yield_%d.npy"%(t,),self.crop_yield)
-            np.save(location+"eco_benefit_pc_%d.npy"%(t,),self.eco_benefit)
-            np.save(location+"real_income_pc_%d.npy"%(t,),self.real_income_pc)
-            np.save(location+"population_%d.npy"%(t,),self.population)
-            np.save(location+"out_mig_%d.npy"%(t,),self.out_mig)
-            np.save(location+"death_rate_%d.npy"%(t,),self.death_rate)
-            np.save(location+"soil_deg_%d.npy"%(t,),self.soil_deg)
+            save_stacked_array(location+"cells_in_influence_%03d"%(t,),self.cells_in_influence,axis=1)
+            np.save(location+"number_cells_in_influence_%03d.npy"%(t,),self.number_cells_in_influence)
+            save_stacked_array(location+"cropped_cells_%03d"%(t,),self.cropped_cells,axis=1)
+            np.save(location+"number_cropped_cells_%03d.npy"%(t,),self.number_cropped_cells)
+            np.save(location+"abnd_sown_%03d.npy"%(t,),np.array((abandoned,sown)))
+            np.save(location+"crop_yield_%03d.npy"%(t,),self.crop_yield)
+            np.save(location+"eco_benefit_pc_%03d.npy"%(t,),self.eco_benefit)
+            np.save(location+"real_income_pc_%03d.npy"%(t,),self.real_income_pc)
+            np.save(location+"population_%03d.npy"%(t,),self.population)
+            np.save(location+"out_mig_%03d.npy"%(t,),self.out_mig)
+            np.save(location+"death_rate_%03d.npy"%(t,),self.death_rate)
+            np.save(location+"soil_deg_%03d.npy"%(t,),self.soil_deg)
 
-            np.save(location+"pop_gradient_%d.npy"%(t,),self.pop_gradient)
-            np.save(location+"adjacency_%d.npy"%(t,),self.adjacency)
-            np.save(location+"degree_%d.npy"%(t,),self.degree)
-            np.save(location+"comp_size_%d.npy"%(t,),self.comp_size)
-            np.save(location+"centrality_%d.npy"%(t,),self.centrality)
-            np.save(location+"trade_income_%d.npy"%(t,),self.trade_income)
+            np.save(location+"pop_gradient_%03d.npy"%(t,),self.pop_gradient)
+            np.save(location+"adjacency_%03d.npy"%(t,),self.adjacency)
+            np.save(location+"degree_%03d.npy"%(t,),self.degree)
+            np.save(location+"comp_size_%03d.npy"%(t,),self.comp_size)
+            np.save(location+"centrality_%03d.npy"%(t,),self.centrality)
+            np.save(location+"trade_income_%03d.npy"%(t,),self.trade_income)
            
-            np.save(location+"number_settlements_%d.npy"%(t,),self.number_settlements)
-            np.save(location+"settlement_positions_%d.npy"%(t,),self.settlement_positions) 
+            np.save(location+"number_settlements_%03d.npy"%(t,),self.number_settlements)
+            np.save(location+"settlement_positions_%03d.npy"%(t,),self.settlement_positions) 
 
 if __name__ == "__main__":
 
