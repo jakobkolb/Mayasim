@@ -11,7 +11,7 @@ from model_parameters import *
 #system before importing them.
 import subprocess
 
-subprocess.call("./f2py_compile.sh", shell=True)
+subprocess.call("./f90makefile.sh", shell=True)
 
 from f90routines import f90routines
 
