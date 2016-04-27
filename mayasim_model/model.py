@@ -4,7 +4,7 @@ import scipy.ndimage as ndimage
 import os
 import matplotlib.pyplot as plot
 import datetime
-from mayasim_parameters import *
+from model_parameters import *
 
 #recompile fortran routines to make sure dependences
 #are matching the available libraries of the particular

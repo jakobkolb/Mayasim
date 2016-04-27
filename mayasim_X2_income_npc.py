@@ -18,11 +18,11 @@ else:
 
 # Default experiment with standard parameters:
 if sub_experiment == 0:
-    from mayasim_model import model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
-    save_location = SAVE_PATH + '_0_pc'
+    save_location = SAVE_PATH + '_0_npc'
     
     if os.path.exists(save_location):
         shutil.rmtree(save_location)
@@ -30,18 +30,18 @@ if sub_experiment == 0:
     save_location += "/"
 
     m = model(N)
-    m.population_control = True
+    m.population_control = False
     m.run(t_max, save_location)
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
 if sub_experiment == 1:
-    from mayasim_model import model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
-    save_location = SAVE_PATH + '_1_pc'
+    save_location = SAVE_PATH + '_1_npc'
 
     if os.path.exists(save_location):
         shutil.rmtree(save_location)
@@ -50,17 +50,17 @@ if sub_experiment == 1:
 
     m = model(N)
     m.crop_income_mode = "sum"
-    m.population_control = True
+    m.population_control = False
     m.run(t_max, save_location)
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
 #plot results for both sub experiments
 if sub_experiment == 2:
 
     t_max = 325
 
-    save_location = SAVE_PATH + '_0_pc/'
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    save_location = SAVE_PATH + '_0_npc/'
+    call(["python", "/visuals/mayasim_visuals.py", save_location, `t_max`])
 
-    save_location = SAVE_PATH + '_1_pc/'
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    save_location = SAVE_PATH + '_1_npc/'
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])

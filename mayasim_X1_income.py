@@ -18,7 +18,7 @@ else:
 
 # Default experiment with standard parameters:
 if sub_experiment == 0:
-    from mayasim_model import model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
@@ -31,14 +31,14 @@ if sub_experiment == 0:
 
     m = model(N)
     m.run(t_max, save_location)
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
 
 
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
 if sub_experiment == 1:
-    from mayasim_model import model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
@@ -52,7 +52,7 @@ if sub_experiment == 1:
     m = model(N)
     m.crop_income_mode = "sum"
     m.run(t_max, save_location)
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
 #plot results for both sub experiments
 if sub_experiment == 2:
@@ -60,7 +60,7 @@ if sub_experiment == 2:
     t_max = 325
 
     save_location = SAVE_PATH + '_0/'
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
     save_location = SAVE_PATH + '_1/'
-    call(["python", "mayasim_visuals.py", save_location, `t_max`])
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
