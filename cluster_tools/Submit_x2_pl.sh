@@ -16,6 +16,6 @@ echo "SLURM JOB ID: $SLURM_JOBID"
 echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
-cd ../experiments
+cd ../
 srun -n $SLURM_NTASKS python mayasim_X2_income_w_pc.py 2
 

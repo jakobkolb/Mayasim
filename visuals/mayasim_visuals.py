@@ -13,7 +13,7 @@ print sys.argv
 ################################################################################
 
 N = int(sys.argv[2])
-verbose = True
+verbose = False
 
 data_directory = sys.argv[1]
 print data_directory
@@ -23,6 +23,8 @@ if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
 
 ################################################################################
+
+### Find max number of settlements
 number_settlements = 0
 for i in range(1,N):
     tmp = np.load(data_directory+"number_settlements_%03d.npy"%(i,))
@@ -422,15 +424,6 @@ for t in xrange(1,N+1):
     write_number_settlements_evo(t)
     write_soil_deg_evo(t)
     write_ag_pop_density_evo(t)
-    
-## show last frame:
-show_soil_deg(t)
-show_bca(t)
-
-show_bca_influence_cropped(t)
-show_network(t)
-show_pop_gradient(t)
-################################################################################
 
 ### after looping: plot time evolution
  
@@ -531,7 +524,12 @@ def plot3():
     
     ### total real income
     plt.subplot(224)
-    plt.stackplot(np.arange(N),np.nanmean(crop_yield_evo,1)*1.1,np.nanmean(eco_benefit_evo,1)*10,np.nanmean(trade_income_evo,1)*6000)
+    stacks = plt.stackplot(np.arange(N),np.nanmean(crop_yield_evo,1),np.nanmean(eco_benefit_evo,1),np.nanmean(trade_income_evo,1))
+    LegendProxies = []
+    for stack in stacks:
+        LegendProxies.append(plt.Rectangle((0,0),1,1,fc=stack.get_facecolor()[0]))
+        print 'stack'
+    plt.legend(LegendProxies,['crops', 'ess', 'trade'], loc=0)
     plt.title("total real income")
     
     plt.tight_layout()
@@ -647,19 +645,19 @@ def plot_income():
     ### real income per capita evolution
     fig = plt.figure(figsize=(12,7))
     plt.subplot(221)
-    plt.plot(crop_yield_evo*1.1,color='#A57A00',linestyle='',marker='.',alpha=0.2)
+    plt.plot(crop_yield_evo,color='#A57A00',linestyle='',marker='.',alpha=0.2)
     plt.title("crop yield")
     
     plt.subplot(222)
-    plt.plot(eco_benefit_evo*10.,color='#0EB800',linestyle='',marker='.',alpha=0.2)
+    plt.plot(eco_benefit_evo.,color='#0EB800',linestyle='',marker='.',alpha=0.2)
     plt.title("ecosystem benefit")
     
     plt.subplot(223)
-    plt.plot(trade_income_evo*6000.,color='#F3456E',linestyle='',marker='.',alpha=0.2)
+    plt.plot(trade_income_evo.,color='#F3456E',linestyle='',marker='.',alpha=0.2)
     plt.title("trade strength")
     
     plt.subplot(224)
-    plt.plot(crop_yield_evo*1.1+eco_benefit_evo*10.+trade_income_evo*6000.,'k.',alpha=0.2)
+    plt.plot(crop_yield_evo+eco_benefit_evo+trade_income_evo,'k.',alpha=0.2)
     plt.title("total real income")
     
     fig.savefig(picture_directory+'7_evo_real_income.png',dpi=200)

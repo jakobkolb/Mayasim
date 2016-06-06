@@ -82,9 +82,10 @@ e_f = 45. # forest
 
 
 #WEIGHTS FOR INCOME CALCULATION
-r_bca = 1.1	# 1.1 - weight agriculture income
-r_es = 10. 	# 10. - weight ecosystem services
-r_trade = 6000. # 6000. wdight trade income
+r_bca_mean  = 1.1	# 1.1 - weight agriculture income for mean calculation
+r_bca_sum   = 0.08	# 0.08- weight agriculture income for sum calculation
+r_es        = 10. 	# 10. - weight ecosystem services
+r_trade     = 6000.     # 6000. wdight trade income
 
 #DEMOGRAPHIC PARAMETERS
 birth_rate_parameter = 0.15

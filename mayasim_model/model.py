@@ -523,9 +523,9 @@ class model:
             crops = bca[self.cropped_cells[city][0],self.cropped_cells[city][1]]
 ###EQUATION###################################################################
             if self.crop_income_mode == "mean":
-                self.crop_yield[city] = np.nanmean(crops[crops>0])
+                self.crop_yield[city] = r_bca_mean*np.nanmean(crops[crops>0])
             elif self.crop_income_mode == "sum":
-                self.crop_yield[city] = np.nansum(crops[crops>0])
+                self.crop_yield[city] = r_bca_sum*np.nansum(crops[crops>0])
 ###EQUATION###################################################################            
         self.crop_yield = [0 if np.isnan(self.crop_yield[index]) \
                 else self.crop_yield[index] for index in range(len(self.crop_yield))]
@@ -535,14 +535,14 @@ class model:
         # benefit from ecosystem services of cells in influence
         for city in self.populated_cities:
 ###EQUATION###################################################################            
-            self.eco_benefit[city] = np.nanmean(es[self.cells_in_influence[city]])
+            self.eco_benefit[city] = r_es*np.nanmean(es[self.cells_in_influence[city]])
         self.eco_benefit[self.population==0] = 0
 ###EQUATION###################################################################            
         return
 
     def get_trade_income(self):
 ###EQUATION###################################################################            
-        self.trade_income = [1./30.*( 1 + self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
+        self.trade_income = [r_trade*1./30.*( 1 + self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
         self.trade_income = [1 if value>1 else 0 if (value<0 or self.degree[index]==0) else value for index, value in enumerate(self.trade_income)]
 ###EQUATION###################################################################            
         return
@@ -550,9 +550,9 @@ class model:
     def get_real_income_pc(self):
         ### combine agricultural, ecosystem service and trade benefit
 ###EQUATION###################################################################            
-        self.real_income_pc = [(r_bca * self.crop_yield[index] \
-                + r_es * self.eco_benefit[index] \
-                + r_trade * self.trade_income[index]) \
+        self.real_income_pc = [(self.crop_yield[index] \
+                + self.eco_benefit[index] \
+                + self.trade_income[index]) \
                 /self.population[index] \
                 if value > 0 else 0 \
                 for index, value in enumerate(self.population)]

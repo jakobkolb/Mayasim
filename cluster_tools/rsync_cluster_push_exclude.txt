@@ -4,5 +4,5 @@
 output_data/*
 ./*.npy
 *.odt
-cluster*
+cluster*.sh
 *.md
