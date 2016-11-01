@@ -12,7 +12,8 @@ print sys.argv
 
 ################################################################################
 
-N = int(sys.argv[2])
+N = int(sys.argv[3])
+print N
 verbose = True
 
 data_directory = sys.argv[1]

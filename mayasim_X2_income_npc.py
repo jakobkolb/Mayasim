@@ -26,7 +26,7 @@ if sub_experiment == 0:
     t_max = 325
 
     save_location_RAW = SAVE_PATH_RAW + '_0_npc'
-    save_location_RES = SAVE_PATH_RES + '_0_npc'
+    save_location_RES = SAVE_PATH_RES + '_0_npc_plots'
 
     if os.path.exists(save_location_RAW):
         shutil.rmtree(save_location_RAW)
@@ -53,7 +53,7 @@ if sub_experiment == 1:
     t_max = 325
 
     save_location_RAW = SAVE_PATH_RAW + '_1_npc'
-    save_location_RES = SAVE_PATH_RES + '_1_npc'
+    save_location_RES = SAVE_PATH_RES + '_1_npc_plots'
 
     if os.path.exists(save_location_RAW):
         shutil.rmtree(save_location_RAW)
@@ -78,13 +78,13 @@ if sub_experiment == 2:
     t_max = 325
 
     save_location_RAW = SAVE_PATH_RAW + '_0_npc'
-    save_location_RES = SAVE_PATH_RES + '_0_npc'
+    save_location_RES = SAVE_PATH_RES + '_0_npc_plots'
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, `t_max`])
     moviefy(save_location_RES)
 
     save_location_RAW = SAVE_PATH_RAW + '_1_npc'
-    save_location_RES = SAVE_PATH_RES + '_1_npc'
+    save_location_RES = SAVE_PATH_RES + '_1_npc_plots'
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, `t_max`])
     moviefy(save_location_RES)

@@ -25,7 +25,7 @@ if sub_experiment == 0:
     N = 30
     t_max = 325
     save_location_RAW = SAVE_PATH_RAW + '_0'
-    save_location_RES = SAVE_PATH_RES + '_0'
+    save_location_RES = SAVE_PATH_RES + '_0_plots'
 
     if os.path.exists(save_location_RAW):
         shutil.rmtree(save_location_RAW)
@@ -49,7 +49,8 @@ if sub_experiment == 1:
 
     N = 30
     t_max = 325
-    save_location = SAVE_PATH + '_1'
+    save_location_RAW = SAVE_PATH_RAW + '_1'
+    save_location_RES = SAVE_PATH_RES + '_1_plots'
 
     if os.path.exists(save_location_RAW):
         shutil.rmtree(save_location_RAW)
@@ -73,13 +74,13 @@ if sub_experiment == 2:
     t_max = 325
 
     save_location_RAW = SAVE_PATH_RAW + '_0/'
-    save_location_RES = SAVE_PATH_RES + '_0/'
+    save_location_RES = SAVE_PATH_RES + '_0_plots/'
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, `t_max`])
     moviefy(save_location_RES)
 
     save_location_RAW = SAVE_PATH_RAW + '_1/'
-    save_location_RES = SAVE_PATH_RES + '_1/'
+    save_location_RES = SAVE_PATH_RES + '_1_plots/'
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, `t_max`])
     moviefy(save_location_RES)

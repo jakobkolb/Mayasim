@@ -34,7 +34,7 @@ if sub_experiment == 0:
         print r_bca_value
 
         save_location_RAW = SAVE_PATH_RAW + "_%03f_npc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_npc"%(r_bca_value,)
+        save_location_RES = SAVE_PATH_RES + "_%03f_npc_plots"%(r_bca_value,)
 
         if os.path.exists(save_location_RAW):
             shutil.rmtree(save_location_RAW)
@@ -71,7 +71,7 @@ if sub_experiment == 1:
         print r_bca_value
 
         save_location_RAW = SAVE_PATH_RAW + "_%03f_pc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_pc"%(r_bca_value,)
+        save_location_RES = SAVE_PATH_RES + "_%03f_pc_plots"%(r_bca_value,)
 
         if os.path.exists(save_location_RAW):
             shutil.rmtree(save_location_RAW)
