@@ -17,5 +17,5 @@ echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
 cd ../
-srun -n $SLURM_NTASKS python mayasim_X2_income_w_pc.py 2
+srun -n $SLURM_NTASKS python mayasim_X2_income_npc.py 2
 

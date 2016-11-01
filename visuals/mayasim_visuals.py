@@ -13,11 +13,12 @@ print sys.argv
 ################################################################################
 
 N = int(sys.argv[2])
-verbose = False
+verbose = True
 
 data_directory = sys.argv[1]
+picture_directory = sys.argv[2]
 print data_directory
-picture_directory = sys.argv[1].rstrip('/') + '_plots/'
+print picture_directory
 
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
@@ -26,7 +27,7 @@ if not os.path.exists(picture_directory):
 
 ### Find max number of settlements
 number_settlements = 0
-for i in range(1,N):
+for i in range(1,N+1):
     tmp = np.load(data_directory+"number_settlements_%03d.npy"%(i,))
     if tmp>number_settlements : number_settlements = tmp
 print 'max number of settlements is: ', number_settlements
@@ -649,11 +650,11 @@ def plot_income():
     plt.title("crop yield")
     
     plt.subplot(222)
-    plt.plot(eco_benefit_evo.,color='#0EB800',linestyle='',marker='.',alpha=0.2)
+    plt.plot(eco_benefit_evo,color='#0EB800',linestyle='',marker='.',alpha=0.2)
     plt.title("ecosystem benefit")
     
     plt.subplot(223)
-    plt.plot(trade_income_evo.,color='#F3456E',linestyle='',marker='.',alpha=0.2)
+    plt.plot(trade_income_evo,color='#F3456E',linestyle='',marker='.',alpha=0.2)
     plt.title("trade strength")
     
     plt.subplot(224)
