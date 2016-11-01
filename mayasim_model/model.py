@@ -491,9 +491,10 @@ class model(parameters):
                 self.occupied_cells[coor[0],coor[1]] = 0
                 abandoned += len(abandon_ind)
 
-        # Finally, update list of lists containing cropped cells for each city with 
-        # positive population. 
-        self.number_cropped_cells = [len(self.cropped_cells[city][0]) for city in range(len(self.population))]
+        # Finally, update list of lists containing cropped cells for each city
+        # with positive population.
+        self.number_cropped_cells = [len(self.cropped_cells[city][0])
+                                     for city in range(len(self.population))]
 
         return abandoned, sown
 
@@ -767,8 +768,7 @@ class model(parameters):
 
         dead_city_indices = [index for index in range(len(self.population)) if
                              (self.population[index] <= 0 or
-                    (len(self.cropped_cells[index][0]) <= 0)
-                     and self.age[index] < 5)]
+                             (len(self.cropped_cells[index][0]) <= 0)]
 
         #remove entries from variables
         #simple lists that can be deleted elementwise
