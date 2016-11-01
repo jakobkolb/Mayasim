@@ -766,12 +766,13 @@ class model(parameters):
 
     def kill_cities(self):
 
+        # kill cities if they have either no crops or no inhabitants:
         dead_city_indices = [index for index in range(len(self.population)) if
                              (self.population[index] <= 0 or
-                             (len(self.cropped_cells[index][0]) <= 0)]
+                             (len(self.cropped_cells[index][0]) <= 0))]
 
-        #remove entries from variables
-        #simple lists that can be deleted elementwise
+        # remove entries from variables
+        # simple lists that can be deleted elementwise
         for index in sorted(dead_city_indices, reverse=True):
             self.number_settlements -= 1
             self.failed += 1
