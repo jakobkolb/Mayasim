@@ -1,11 +1,12 @@
-import sys
-import os
 import glob
+import os
 import shutil
+import sys
 from subprocess import call
 
 
 def moviefy(input_folder, output_folder=None):
+    # type: (str, str) -> object
 
     framerate = 8
     if output_folder is None:

@@ -1,16 +1,13 @@
-import numpy as np
-import sys
-import os
 import matplotlib as mpl
+import numpy as np
+import os
+import sys
+
 mpl.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap, BoundaryNorm, Normalize
-import matplotlib.gridspec as gridspec
+from matplotlib.colors import ListedColormap, Normalize
 
 print sys.argv
-
-
-################################################################################
 
 N = int(sys.argv[3])
 print N
@@ -24,17 +21,15 @@ print picture_directory
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
 
-################################################################################
-
-### Find max number of settlements
+# Find max number of settlements
 number_settlements = 0
-for i in range(1,N+1):
-    tmp = np.load(data_directory+"number_settlements_%03d.npy"%(i,))
-    if tmp>number_settlements : number_settlements = tmp
+for i in range(1, N+1):
+    tmp = np.load(data_directory + "number_settlements_{0:03d}.npy".format(i, ))
+    if tmp>number_settlements:
+        number_settlements = tmp
 print 'max number of settlements is: ', number_settlements
 
-
-### initialize variables to track overall evolution
+# initialize variables to track overall evolution
 rain_evo = np.zeros((3,N))
 npp_evo = np.zeros((3,N))
 forest_evo = np.zeros((3,N))
