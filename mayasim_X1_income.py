@@ -1,9 +1,9 @@
-
-import os
-import sys
 import getpass
+import os
 import shutil
+import sys
 from subprocess import call
+
 from visuals.moviefy import moviefy
 
 if getpass.getuser() == "kolb":
@@ -20,7 +20,7 @@ else:
 
 # Default experiment with standard parameters:
 if sub_experiment == 0:
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -36,7 +36,7 @@ if sub_experiment == 0:
     os.makedirs(save_location_RES)
     save_location_RES += "/"
 
-    m = model(N)
+    m = Model(N)
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, `t_max`])
@@ -45,7 +45,7 @@ if sub_experiment == 0:
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
 if sub_experiment == 1:
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -61,7 +61,7 @@ if sub_experiment == 1:
     os.makedirs(save_location_RES)
     save_location_RES += "/"
 
-    m = model(N)
+    m = Model(N)
     m.crop_income_mode = "sum"
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,

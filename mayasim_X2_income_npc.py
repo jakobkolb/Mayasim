@@ -1,9 +1,9 @@
-
-import os
-import sys
 import getpass
+import os
 import shutil
+import sys
 from subprocess import call
+
 from visuals.moviefy import moviefy
 
 if getpass.getuser() == "kolb":
@@ -12,6 +12,9 @@ if getpass.getuser() == "kolb":
 elif getpass.getuser() == "jakob":
     SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X2"
     SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X2"
+else:
+    SAVE_PATH_RAW = "./RAW"
+    SAVE_PATH_RES = "./RES"
 
 if len(sys.argv) > 1:
     sub_experiment = int(sys.argv[1])
@@ -20,7 +23,7 @@ else:
 
 # Default experiment with standard parameters:
 if sub_experiment == 0:
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -37,7 +40,7 @@ if sub_experiment == 0:
     os.makedirs(save_location_RES)
     save_location_RES += "/"
 
-    m = model(N)
+    m = Model(N)
     m.population_control = False
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
@@ -47,7 +50,7 @@ if sub_experiment == 0:
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
 if sub_experiment == 1:
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -64,7 +67,7 @@ if sub_experiment == 1:
     os.makedirs(save_location_RES)
     save_location_RES += "/"
 
-    m = model(N)
+    m = Model(N)
     m.crop_income_mode = "sum"
     m.population_control = False
     m.run(t_max, save_location_RAW)
@@ -77,14 +80,13 @@ if sub_experiment == 2:
 
     t_max = 325
 
-    save_location_RAW = SAVE_PATH_RAW + '_0_npc'
-    save_location_RES = SAVE_PATH_RES + '_0_npc_plots'
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
-    moviefy(save_location_RES)
-
-    save_location_RAW = SAVE_PATH_RAW + '_1_npc'
-    save_location_RES = SAVE_PATH_RES + '_1_npc_plots'
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
-    moviefy(save_location_RES)
+    for x in [0, 1]:
+        save_location_RAW = SAVE_PATH_RAW + '_{:d}_npc'.format(x)
+        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots'.format(x)
+        if os.path.exists(save_location_RES):
+            shutil.rmtree(save_location_RES)
+        os.makedirs(save_location_RES)
+        save_location_RES += "/"
+        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+              save_location_RES, `t_max`])
+        moviefy(save_location_RES)

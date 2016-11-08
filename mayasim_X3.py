@@ -1,10 +1,10 @@
-
-import os
-import sys
 import getpass
-import shutil
 import numpy as np
+import os
+import shutil
+import sys
 from subprocess import call
+
 from visuals.moviefy import moviefy
 
 if getpass.getuser() == "kolb":
@@ -22,7 +22,7 @@ else:
 # Default experiment with standard parameters:
 if sub_experiment == 0:
     print 'starting sub-experiment No 0'
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -33,8 +33,8 @@ if sub_experiment == 0:
     for i, r_bca_value in enumerate(r_bca_values):
         print r_bca_value
 
-        save_location_RAW = SAVE_PATH_RAW + "_%03f_npc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_npc_plots"%(r_bca_value,)
+        save_location_RAW = SAVE_PATH_RAW + "_{0:03f}_npc".format(r_bca_value, )
+        save_location_RES = SAVE_PATH_RES + "_{0:03f}_npc_plots".format(r_bca_value, )
 
         if os.path.exists(save_location_RAW):
             shutil.rmtree(save_location_RAW)
@@ -45,7 +45,7 @@ if sub_experiment == 0:
         os.makedirs(save_location_RES)
         save_location_RES += "/"
 
-        m = model(N)
+        m = Model(N)
         m.output_level = 'spatial'
         m.crop_income_mode = 'sum'
         m.r_bca = r_bca_value
@@ -60,7 +60,7 @@ if sub_experiment == 0:
 # sum over all cropped cells
 if sub_experiment == 1:
     print 'starting sub-experiment No 1'
-    from mayasim_model.model import model
+    from mayasim_model.model import Model
 
     N = 30
     t_max = 325
@@ -82,7 +82,7 @@ if sub_experiment == 1:
         os.makedirs(save_location_RES)
         save_location_RES += "/"
 
-        m = model(N)
+        m = Model(N)
         m.output_level = 'spatial'
         m.crop_income_mode = 'sum'
         m.r_bca = r_bca_value
@@ -104,15 +104,15 @@ if sub_experiment == 2:
 
     for i, r_bca_value in enumerate(r_bca_values):
         print r_bca_value
+        for pop in ["pc", "npc"]:
 
-        save_location_RAW = SAVE_PATH_RAW + "_%03f_npc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_npc_plots"%(r_bca_value,)
-        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, `t_max`])
-        moviefy(save_location_RES)
+            save_location_RAW = SAVE_PATH_RAW + "_{0:03f}_{1}".format(r_bca_value, pop, )
+            save_location_RES = SAVE_PATH_RES + "_{0:03f}_{1}_plots".format(r_bca_value, pop, )
+            if os.path.exists(save_location_RES):
+                shutil.rmtree(save_location_RES)
+            os.makedirs(save_location_RES)
+            save_location_RES += "/"
 
-        save_location_RAW = SAVE_PATH_RAW + "_%03f_pc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_pc_plots"%(r_bca_value,)
-        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, `t_max`])
-        moviefy(save_location_RES)
+            call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+                  SAVE_PATH_RES, `t_max`])
+            moviefy(save_location_RES)

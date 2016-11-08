@@ -1,21 +1,14 @@
-import numpy as np
-import scipy.sparse as sparse
-import scipy.ndimage as ndimage
+import datetime
 import matplotlib.pyplot as plt
-import pandas as pd
+import numpy as np
 import os
 import pickle
-import datetime
-from model_parameters import parameters
-
-# recompile fortran routines to make sure dependences
-# are matching the available libraries of the particular
-# system before importing them.
-
-# import subprocess
-# subprocess.call("./mayasim_model/f90makefile.sh", shell=True)
+import scipy.ndimage as ndimage
+import scipy.sparse as sparse
 
 from f90routines import f90routines
+
+from model_parameters import parameters
 
 
 class Visuals(object):
@@ -40,9 +33,9 @@ class Visuals(object):
         pass
 
 
-class model(parameters):
+class Model(parameters):
 
-    def __init__(self, N=30, input_data_location="./input_data/"):
+    def __init__(self, n=30, input_data_location="./input_data/"):
 
         # *******************************************************************
         # MODEL PARAMETERS (to be varied)
@@ -55,9 +48,9 @@ class model(parameters):
         elif self.crop_income_mode == 'mean':
             self.r_bca = self.r_bca_mean
 
-        ### *******************************************************************
-        ### MODEL DATA SOURCES
-        ### *******************************************************************
+        # *******************************************************************
+        # MODEL DATA SOURCES
+        # *******************************************************************
 
         # documentation for TEMPERATURE and PRECIPITATION data can be found here: http://www.worldclim.org/formats
         # apparently temperature data is given in x*10 format to allow for smaller file sizes.
@@ -81,7 +74,7 @@ class model(parameters):
         # NETLOGO version sets soilprod > 6 to 1.5. 
         # would make more sense to cap it though..
         # self.soilprod[self.soilprod>6] = 6
-        self.soilprod[self.soilprod>6] = 1.5
+        self.soilprod[self.soilprod > 6] = 1.5
         # it also sets soil productivity to 1.5 where the elevation is <= 1
         self.soilprod[self.elev <= 1] = 1.5
         # smoothen soil productivity dataset
@@ -89,11 +82,11 @@ class model(parameters):
         # and set to zero for non land cells
         self.soilprod[np.isnan(self.elev)] = 0
 
-        ### *******************************************************************
-        ### MODEL MAP INITIALIZATION
-        ### *******************************************************************
+        # *******************************************************************
+        # MODEL MAP INITIALIZATION
+        # *******************************************************************
 
-        ### dimensions of the map
+        # dimensions of the map
         self.rows, self.columns = self.precip.shape
         self.height, self.width = 914., 840. # height and width in km
         self.pixel_dim = self.width/self.columns
@@ -107,32 +100,32 @@ class model(parameters):
         self.elev[:,-1] = np.inf
         self.elev[0,:] = np.inf
         self.elev[-1,:] = np.inf
-        #create a list of the index values i = (x, y) of the land patches with finite elevation h
+        # create a list of the index values i = (x, y) of the land patches with finite elevation h
         self.list_of_land_patches = [i for i, h in np.ndenumerate(self.elev) if np.isfinite(self.elev[i])]
 
         # initialize soil degradation and population gradient (influencing the forest)
 
-        ### *******************************************************************
-        ### INITIALIZE ECOSYSTEM
-        ### *******************************************************************
+        # *******************************************************************
+        # INITIALIZE ECOSYSTEM
+        # *******************************************************************
 
-        #Soil (influencing primary production and agricultural productivity)
+        # Soil (influencing primary production and agricultural productivity)
         self.soil_deg = np.zeros((self.rows,self.columns))
 
-        #Forest
+        # Forest
         self.forest_state = np.zeros((self.rows,self.columns),dtype=int)
         self.forest_memory = np.zeros((self.rows,self.columns),dtype=int)
         self.cleared_land_neighbours = np.zeros((self.rows,self.columns),dtype=int)
-        ### The forest has three states: 3=climax forest, 2=secondary regrowth, 1=cleared land.   
+        # The forest has three states: 3=climax forest, 2=secondary regrowth, 1=cleared land.
         for i in self.list_of_land_patches:
             self.forest_state[i] = 3
 
-        #Variables describing total amount of water and water flow
+        # Variables describing total amount of water and water flow
         self.water = np.zeros((self.rows,self.columns))
         self.flow = np.zeros((self.rows,self.columns))
         self.spaciotemporal_precipitation = np.zeros((self.rows,self.columns))
 
-        #initialize the trajectories of the water drops
+        # initialize the trajectories of the water drops
         self.x = np.zeros((self.rows,self.columns),dtype="int")
         self.y = np.zeros((self.rows,self.columns),dtype="int")
 
@@ -140,41 +133,41 @@ class model(parameters):
         self.neighbourhood = [(i, j) for i in [-1, 0, 1] for j in [-1, 0, 1]]
         self.f90neighbourhood = np.asarray(self.neighbourhood).T
 
-        ### *******************************************************************
-        ### INITIALIZE SOCIETY
-        ### *******************************************************************
+        # *******************************************************************
+        # INITIALIZE SOCIETY
+        # *******************************************************************
 
-        #Population gradient (influencing the forest)
+        # Population gradient (influencing the forest)
         self.pop_gradient = np.zeros((self.rows,self.columns))
 
-        self.number_settlements = N
+        self.number_settlements = n
         # distribute specified number of settlements on the map
-        self.settlement_positions = self.land_patches[:,np.random.choice(
-                len(self.land_patches[1]),N).astype('int')]
+        self.settlement_positions = self.land_patches[:, np.random.choice(
+                len(self.land_patches[1]), n).astype('int')]
 
-        self.age = [0]*N
+        self.age = [0] * n
 
         # demographic variables
-        self.birth_rate = [self.birth_rate_parameter]*N
-        self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(N)]
-        self.population = list(np.random.randint(self.min_init_inhabitants,self.max_init_inhabitants,N).astype(float))
-        self.mig_rate =  [0.]*N
-        self.out_mig = [0]*N
+        self.birth_rate = [self.birth_rate_parameter] * n
+        self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(n)]
+        self.population = list(np.random.randint(self.min_init_inhabitants, self.max_init_inhabitants, n).astype(float))
+        self.mig_rate = [0.] * n
+        self.out_mig = [0] * n
         self.pioneer_set = []
         self.failed = 0
 
-        #index list for populated and abandoned cities
-        #used until removal of dead cities is implemented.
-        self.populated_cities = range(N)
+        # index list for populated and abandoned cities
+        # used until removal of dead cities is implemented.
+        self.populated_cities = range(n)
         self.dead_cities = []
 
         # agricultural influence
-        self.number_cells_in_influence = [0]*N
-        self.area_of_influence = [0.]*N
+        self.number_cells_in_influence = [0] * n
+        self.area_of_influence = [0.] * n
         self.coordinates = np.indices((self.rows,self.columns))
-        self.cells_in_influence = [None]*N # will be a list of arrays 
+        self.cells_in_influence = [None] * n # will be a list of arrays
 
-        self.cropped_cells = [None]*N
+        self.cropped_cells = [None] * n
         # for now, cropped cells are only the city positions.
         # first cropped cells are added at the first call of
         # get_cropped_cells()
@@ -183,21 +176,21 @@ class model(parameters):
                                         [self.settlement_positions[1, city]]]
 
         self.occupied_cells = np.zeros((self.rows, self.columns))
-        self.number_cropped_cells = [0]*N
-        self.crop_yield = [0.]*N
-        self.eco_benefit = [0.]*N
+        self.number_cropped_cells = [0] * n
+        self.crop_yield = [0.] * n
+        self.eco_benefit = [0.] * n
         self.available = 0
 
         # Trade Variables
-        self.adjacency = np.zeros((N, N))
-        self.rank = [0]*N
-        self.degree = [0]*N
-        self.comp_size = [0]*N
-        self.centrality = [0]*N
-        self.trade_income = [0]*N
+        self.adjacency = np.zeros((n, n))
+        self.rank = [0] * n
+        self.degree = [0] * n
+        self.comp_size = [0] * n
+        self.centrality = [0] * n
+        self.trade_income = [0] * n
 
         # total real income per capita
-        self.real_income_pc = [0]*N
+        self.real_income_pc = [0] * n
 
     def save_run_variables(self, path):
         """
@@ -225,7 +218,7 @@ class model(parameters):
         Returns a field of rainfall values for each cell.
         If veg_rainfall > 0, cleared_land_neighbours decreases rain.
 
-        TO DO: The original model increases specialization every time
+        TO DO: The original Model increases specialization every time
         rainfall decreases, assuming that trade gets more important to
         compensate for agriculture decline
         """
@@ -529,7 +522,6 @@ class model(parameters):
         self.population = [value if value > 0 else 0
                            for value in self.population]
 
-        # TODO: connect with other model functions
         estab_cost = 900
         self.population = [0 if value < estab_cost*0.4
                            else value for value in self.population]
@@ -811,7 +803,7 @@ class model(parameters):
 
         return
 
-    def spawn_city(self , a, b, mig_pop):
+    def spawn_city(self, a, b, mig_pop):
         ### extend all variables to include new city
         self.number_settlements += 1
         self.settlement_positions = np.append(self.settlement_positions,[[a],[b]],1)
@@ -839,16 +831,17 @@ class model(parameters):
         self.real_income_pc.append(0)
 
     def run(self, t_max, location, interactive_output=False):
+        # type: (int, basestring, bool) -> None
 
-        #### initialize time step
+        # initialize time step
         t = 0
 
-        #### initialize variables
-        npp = np.zeros((self.rows,self.columns))# net primary productivity
-        wf = np.zeros((self.rows,self.columns)) # water flow
-        ag = np.zeros((self.rows,self.columns)) # agricultural productivity
-        es = np.zeros((self.rows,self.columns)) # ecosystem services
-        bca = np.zeros((self.rows,self.columns))# benefit cost map for agriculture
+        # initialize variables
+        npp = np.zeros((self.rows,self.columns))  # net primary productivity
+        wf = np.zeros((self.rows,self.columns))   # water flow
+        ag = np.zeros((self.rows,self.columns))   # agricultural productivity
+        es = np.zeros((self.rows,self.columns))   # ecosystem services
+        bca = np.zeros((self.rows,self.columns))  # benefit cost map for agriculture
 
         if self.output_level == 'trajectory':
             self.init_trajectory_output()
@@ -947,13 +940,13 @@ class model(parameters):
 
     def init_trajectory_output(self):
         self.trajectory.append(['time',
-            'total_population',
-            'total_settlements',
-            'total_trade_links',
-            'total_income_agriculture',
-            'total_income_ecosystem',
-            'total_income_trade',
-            'mean_cluster_size'])
+                                'total_population',
+                                'total_settlements',
+                                'total_trade_links',
+                                'total_income_agriculture',
+                                'total_income_ecosystem',
+                                'total_income_trade',
+                                'mean_cluster_size'])
 
     def save_trajectory_output(self, time):
 
@@ -967,29 +960,29 @@ class model(parameters):
         mean_cluster_size = float(sum(self.comp_size))/number_of_components if number_of_components > 0 else 0
 
         self.trajectory.append([time,
-            total_population,
-            total_settlements,
-            total_trade_links,
-            income_agriculture,
-            income_ecosystem,
-            income_trade,
-            mean_cluster_size])
+                                total_population,
+                                total_settlements,
+                                total_trade_links,
+                                income_agriculture,
+                                income_ecosystem,
+                                income_trade,
+                                mean_cluster_size])
 
 if __name__ == "__main__":
 
     N = 30
 
-    #### initialize model
-    model = model(N, '../input_data/')
+    # initialize Model
+    model = Model(N, '../input_data/')
 
-    ### define saving location
+    # define saving location
     comment = "testing_version"
     now = datetime.datetime.now()
     location = "output_data/"+now.strftime("%d_%m_%H-%M-%Ss")+"_Output_"+comment + '/'
     os.makedirs(location)
 
 
-    ### run model
+    # run Model
     timesteps = 500
     model.crop_income_mode='mean'
     model.output_level = 'trajectory'

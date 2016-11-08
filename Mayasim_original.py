@@ -1,11 +1,8 @@
-
-
-import numpy as np
-import matplotlib.pyplot as plot
-# from copy import deepcopy
-import scipy.ndimage as ndimage
-import os
 import datetime
+import matplotlib.pyplot as plot
+import numpy as np
+import os
+import scipy.ndimage as ndimage
 
 debug = False
 
@@ -389,8 +386,7 @@ class Settlements:
         #self.population += (self.birth_rate - self.death_rate)*self.population
         self.failed += np.sum(self.population<=0)
         self.population[self.population<=0] = 0
-        
-        ### TODO: connect with other model functions
+
         estab_cost = 900
         self.population[self.population<estab_cost*0.4] = 0
         min_mig_rate = 0.

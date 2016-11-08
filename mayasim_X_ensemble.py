@@ -1,21 +1,22 @@
-
 from __future__ import print_function
-from pymofa import experiment_handling as eh
+
+import cPickle as cp
+import getpass
+import itertools as it
+import numpy as np
+import sys
+from subprocess import call
+
+import pandas as pd
+
 from mayasim_model.model import model
 from mayasim_model.model_parameters import parameters
-
-import numpy as np
-import pandas as pd
-import cPickle as cp
-import itertools as it
-import sys
-import getpass
-from subprocess import call
+from pymofa import experiment_handling as eh
 
 
 def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
     """
-    Set up the model for different parameters and determine
+    Set up the Model for different parameters and determine
     which parts of the output are saved where.
     Output is saved in pickled dictionaries including the
     initial values and parameters, as well as the time
@@ -38,7 +39,7 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
         path to save the results to.
     """
 
-    # initialize the model
+    # initialize the Model
 
     m = model(N)
     m.population_control = True
@@ -61,7 +62,7 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
                                    if not key.startswith('__')
                                    and not callable(key)})
 
-    # run model
+    # run Model
 
     m.run(steps, filename)
 
