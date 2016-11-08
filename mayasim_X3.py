@@ -112,7 +112,8 @@ if sub_experiment == 2:
                 shutil.rmtree(save_location_RES)
             os.makedirs(save_location_RES)
             save_location_RES += "/"
+            save_location_RAW += "/"
 
             call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-                  SAVE_PATH_RES, `t_max`])
+                  save_location_RES, `t_max`])
             moviefy(save_location_RES)

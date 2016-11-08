@@ -15,8 +15,8 @@ verbose = True
 
 data_directory = sys.argv[1]
 picture_directory = sys.argv[2]
-print data_directory
-print picture_directory
+print "data dir: ", data_directory
+print "picture dir: ", picture_directory
 
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
