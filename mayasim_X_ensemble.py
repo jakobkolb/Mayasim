@@ -10,16 +10,16 @@ from subprocess import call
 import pandas as pd
 
 from mayasim_model.model import model
-from mayasim_model.model_parameters import parameters
+from mayasim_model.model_parameters import Parameters
 from pymofa import experiment_handling as eh
 
 
 def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
     """
-    Set up the Model for different parameters and determine
+    Set up the Model for different Parameters and determine
     which parts of the output are saved where.
     Output is saved in pickled dictionaries including the
-    initial values and parameters, as well as the time
+    initial values and Parameters, as well as the time
     development of aggregated variables for each run.
 
     Parameters:
@@ -47,7 +47,7 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
     m.r_bca = r_bca
     m.output_level = 'trajectory'
 
-    # store initial conditions and parameters
+    # store initial conditions and Parameters
 
     res = {}
     res["initials"] = pd.DataFrame({"Settlement X Possitions":
@@ -56,9 +56,9 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
                                     m.settlement_positions[1],
                                     "Population": m.population})
 
-    res["parameters"] = pd.Series({key:
+    res["Parameters"] = pd.Series({key:
                                    getattr(m, key)
-                                   for key in dir(parameters)
+                                   for key in dir(Parameters)
                                    if not key.startswith('__')
                                    and not callable(key)})
 

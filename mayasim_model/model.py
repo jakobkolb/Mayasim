@@ -8,7 +8,7 @@ import scipy.sparse as sparse
 
 from f90routines import f90routines
 
-from model_parameters import parameters
+from model_parameters import Parameters
 
 
 class Visuals(object):
@@ -33,7 +33,7 @@ class Visuals(object):
         pass
 
 
-class Model(parameters):
+class Model(Parameters):
 
     def __init__(self, n=30, input_data_location="./input_data/"):
 
@@ -482,7 +482,8 @@ class Model(parameters):
             ut_negative = utility[self.cropped_cells[city][0], self.cropped_cells[city][1]] <= 0
             if np.sum(ut_negative) > 0:
                 abandon_ind = np.where(ut_negative)[0]
-                coor = [[self.cropped_cells[city][0][ind_x] for ind_x in abandon_ind], [self.cropped_cells[city][1][ind_y] for ind_y in abandon_ind]]
+                coor = [[self.cropped_cells[city][0][ind_x]
+                         for ind_x in abandon_ind], [self.cropped_cells[city][1][ind_y] for ind_y in abandon_ind]]
                 self.cropped_cells[city] = np.delete(self.cropped_cells[city], abandon_ind, 1)
                 self.occupied_cells[coor[0], coor[1]] = 0
                 abandoned += len(abandon_ind)
@@ -706,7 +707,8 @@ class Model(parameters):
 
     def get_trade_income(self ):
 # ##EQUATION###################################################################
-        self.trade_income = [1./30.*( 1 + self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
+        self.trade_income = [1./30.*(1 +
+                                     self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
         self.trade_income = [self.r_trade if value>1 else
                              0 if (value<0 or self.degree[index]==0) else
                              self.r_trade*value for index, value in enumerate(self.trade_income)]

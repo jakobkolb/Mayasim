@@ -1,6 +1,6 @@
 import numpy as np
 
-class parameters():
+class Parameters():
 
     # *******************************************************************
     # RUN PARAMETERS:
@@ -9,8 +9,8 @@ class parameters():
     output_level = 'spatial'   # either 'spatial' or 'trajectory'
 
     # INITIAL NUMBER OF SETTLEMENTS
-    min_init_inhabitants = 5000	# 1000
-    max_init_inhabitants = 10000	# 2000
+    min_init_inhabitants = 5000	    # 1000
+    max_init_inhabitants = 10000    # 2000
 
     timesteps = 325			# 325
 
@@ -18,10 +18,8 @@ class parameters():
     # MODEL PARAMETERS:
     # *******************************************************************
 
-
     # *******************************************************************
     # ECOSYSTEM
-
 
     # RAINFALL PARAMETERS
     veg_rainfall = 0.
@@ -54,10 +52,10 @@ class parameters():
     # AGRICULTURE
 
     # WEIGHTS FOR AGRICULTURAL PRODUCTIVITY
-    a_npp = 0.14 # weight for net primary productivity
-    a_sp = 84. # for soil productivity
-    a_s = 18. # for slope
-    a_wf = 400. # water flow 
+    a_npp = 0.14  # weight for net primary productivity
+    a_sp = 84.    # for soil productivity
+    a_s = 18.     # for slope
+    a_wf = 400.   # water flow
 
     # WEIGHTS FOR BENEFIT COST ASSESSMENT TO CROP NEW CELL
     max_yield = 1100
@@ -91,7 +89,7 @@ class parameters():
 
     # WEIGHTS FOR INCOME CALCULATION
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
-    r_bca_sum = 0.2	  # 0.08- weight agriculture income for sum calculation
+    r_bca_sum = 0.08  # 0.08- weight agriculture income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
     r_es_sum = 2.     # 2.  - weight ecosystem services for sum calculation
     r_trade = 6000.   # 6000. weight trade income

@@ -21,7 +21,7 @@ if len(sys.argv) > 1:
 else:
     sub_experiment = 0
 
-# Default experiment with standard parameters:
+# Default experiment with standard Parameters:
 if sub_experiment == 0:
     from mayasim_model.model import Model
 
@@ -45,7 +45,6 @@ if sub_experiment == 0:
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, repr(t_max)])
-    moviefy(save_location_RES)
 
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
@@ -73,7 +72,6 @@ if sub_experiment == 1:
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, repr(t_max)])
-    moviefy(save_location_RES)
 
 # plot results for both sub experiments
 if sub_experiment == 2:
@@ -81,12 +79,5 @@ if sub_experiment == 2:
     t_max = 325
 
     for x in [0, 1]:
-        save_location_RAW = SAVE_PATH_RAW + '_{:d}_npc'.format(x)
-        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots'.format(x)
-        if os.path.exists(save_location_RES):
-            shutil.rmtree(save_location_RES)
-        os.makedirs(save_location_RES)
-        save_location_RES += "/"
-        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              save_location_RES, repr(t_max)])
+        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots'.format(x) + "/"
         moviefy(save_location_RES)
