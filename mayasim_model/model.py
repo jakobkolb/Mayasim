@@ -231,7 +231,7 @@ class Model(Parameters):
                         (np.ceil(t/self.climate_var) % 8).astype(int)])\
                 - self.veg_rainfall*self.cleared_land_neighbours
         else:
-            self.spaciotemporal_precipitation = self.precip(1 - self.veg_rainfall*self.cleared_land_neighbours)
+            self.spaciotemporal_precipitation = self.precip*(1 - self.veg_rainfall*self.cleared_land_neighbours)
         # EQUATION ###########################################################
 
     def get_waterflow(self):
