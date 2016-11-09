@@ -16,6 +16,9 @@ elif getpass.getuser() == "jakob":
     SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X3"
     SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X3"
     movie = True
+else:
+    SAVE_PATH_RAW = "./RAW"
+    SAVE_PATH_RES = "./RES"
 
 if len(sys.argv) > 1:
     sub_experiment = int(sys.argv[1])
@@ -56,7 +59,7 @@ if sub_experiment == 0:
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, `t_max`])
+              SAVE_PATH_RES, repr(t_max)])
         moviefy(save_location_RES)
 
 # Experiment with crop income that is calculated as the
@@ -73,8 +76,8 @@ if sub_experiment == 1:
     for i, r_bca_value in enumerate(r_bca_values):
         print r_bca_value
 
-        save_location_RAW = SAVE_PATH_RAW + "_%03f_pc"%(r_bca_value,)
-        save_location_RES = SAVE_PATH_RES + "_%03f_pc_plots"%(r_bca_value,)
+        save_location_RAW = SAVE_PATH_RAW + "_{0:03f}_pc".format(r_bca_value, )
+        save_location_RES = SAVE_PATH_RES + "_{0:03f}_pc_plots".format(r_bca_value, )
 
         if os.path.exists(save_location_RAW):
             shutil.rmtree(save_location_RAW)
@@ -93,7 +96,7 @@ if sub_experiment == 1:
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, `t_max`])
+              SAVE_PATH_RES, repr(t_max)])
         moviefy(save_location_RES)
 
 # plot results for both sub experiments
@@ -118,6 +121,6 @@ if sub_experiment == 2:
             save_location_RAW += "/"
 
             call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-                  save_location_RES, `t_max`])
+                  save_location_RES, repr(t_max)])
             if movie:
                 moviefy(save_location_RES)

@@ -44,7 +44,7 @@ if sub_experiment == 0:
     m.population_control = False
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
+          save_location_RES, repr(t_max)])
     moviefy(save_location_RES)
 
 # Experiment with crop income that is calculated as the
@@ -72,7 +72,7 @@ if sub_experiment == 1:
     m.population_control = False
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
+          save_location_RES, repr(t_max)])
     moviefy(save_location_RES)
 
 # plot results for both sub experiments
@@ -88,5 +88,5 @@ if sub_experiment == 2:
         os.makedirs(save_location_RES)
         save_location_RES += "/"
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              save_location_RES, `t_max`])
+              save_location_RES, repr(t_max)])
         moviefy(save_location_RES)

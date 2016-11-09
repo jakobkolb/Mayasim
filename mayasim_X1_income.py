@@ -12,6 +12,9 @@ if getpass.getuser() == "kolb":
 elif getpass.getuser() == "jakob":
     SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X1"
     SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X1"
+else:
+    SAVE_PATH_RAW = "./RAW"
+    SAVE_PATH_RES = "./RES"
 
 if len(sys.argv) > 1:
     sub_experiment = int(sys.argv[1])
@@ -39,7 +42,7 @@ if sub_experiment == 0:
     m = Model(N)
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
+          save_location_RES, repr(t_max)])
     moviefy(save_location_RES)
 
 # Experiment with crop income that is calculated as the
@@ -65,7 +68,7 @@ if sub_experiment == 1:
     m.crop_income_mode = "sum"
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
+          save_location_RES, repr(t_max)])
     moviefy(save_location_RES)
 
 # plot results for both sub experiments
@@ -76,5 +79,5 @@ if sub_experiment == 2:
         save_location_RAW = SAVE_PATH_RAW + '_{}/'.format(ex)
         save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              save_location_RES, `t_max`])
+              save_location_RES, repr(t_max)])
         moviefy(save_location_RES)
