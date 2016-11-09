@@ -7,12 +7,15 @@ from subprocess import call
 
 from visuals.moviefy import moviefy
 
+movie = False
+
 if getpass.getuser() == "kolb":
     SAVE_PATH_RAW = "/p/tmp/kolb/Mayasim/output_data/X3"
     SAVE_PATH_RES = "/home/kolb/Mayasim/output_data/X3"
 elif getpass.getuser() == "jakob":
     SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X3"
     SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X3"
+    movie = True
 
 if len(sys.argv) > 1:
     sub_experiment = int(sys.argv[1])
@@ -116,4 +119,5 @@ if sub_experiment == 2:
 
             call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
                   save_location_RES, `t_max`])
-            moviefy(save_location_RES)
+            if movie:
+                moviefy(save_location_RES)

@@ -72,15 +72,9 @@ if sub_experiment == 1:
 if sub_experiment == 2:
 
     t_max = 325
-
-    save_location_RAW = SAVE_PATH_RAW + '_0/'
-    save_location_RES = SAVE_PATH_RES + '_0_plots/'
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
-    moviefy(save_location_RES)
-
-    save_location_RAW = SAVE_PATH_RAW + '_1/'
-    save_location_RES = SAVE_PATH_RES + '_1_plots/'
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, `t_max`])
-    moviefy(save_location_RES)
+    for ex in [0, 1]:
+        save_location_RAW = SAVE_PATH_RAW + '_{}/'.format(ex)
+        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
+        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+              save_location_RES, `t_max`])
+        moviefy(save_location_RES)
