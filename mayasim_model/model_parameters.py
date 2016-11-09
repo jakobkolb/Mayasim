@@ -25,8 +25,9 @@ class parameters():
 
     # RAINFALL PARAMETERS
     veg_rainfall = 0.
+    precipitation_modulation = True
     # multiplier for precipitation according to climate cycle
-    precipitationModulation = np.array([-0.06, -0.12, -0.18,
+    precipitation_variation = np.array([-0.06, -0.12, -0.18,
                                         -0.12, -0.06, 0., 0.06, 0.])
     # length of period with constant rainfall
     climate_var = 3
@@ -71,14 +72,14 @@ class parameters():
     max_people_per_cropped_cell = 125.
 
     # PARAMETERS FOR SOIL DEGRADATION:
-    deg_rate = 5.0 # 5.0 - degradation rate for cropped cells
-    reg_rate = 2.5 # 2.5 - regeneration rate for state 3 forest cells
+    deg_rate = 5.0  # 5.0 - degradation rate for cropped cells
+    reg_rate = 2.5  # 2.5 - regeneration rate for state 3 forest cells
 
     # WEIGHTS FOR ECOSYSTEM SERVICES
-    e_ag = 0.06 # weight for agricultural productivity
-    e_r = 0. # rain not included in current netlogo version
-    e_wf = 40. # water flow
-    e_f = 45. # forest
+    e_ag = 0.06  # weight for agricultural productivity
+    e_r = 0.     # rain not included in current netlogo version
+    e_wf = 40.   # water flow
+    e_f = 45.    # forest
 
     # *******************************************************************
     # SOCIO-ECONOMY
@@ -86,19 +87,21 @@ class parameters():
     # crop_income specifies the way, crop income is calculated.
     # possible: 'mean' or 'sum'. Default is 'mean'.
     crop_income_mode = 'mean'
+    eco_income_mode = 'mean'
 
     # WEIGHTS FOR INCOME CALCULATION
-    r_bca_mean  = 1.1	# 1.1 - weight agriculture income for mean calculation
-    r_bca_sum   = 0.2	# 0.08- weight agriculture income for sum calculation
-    r_es        = 10. 	# 10. - weight ecosystem services
-    r_trade     = 6000.     # 6000. weight trade income
+    r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
+    r_bca_sum = 0.2	  # 0.08- weight agriculture income for sum calculation
+    r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
+    r_es_sum = 2.     # 2.  - weight ecosystem services for sum calculation
+    r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS
     birth_rate_parameter = 0.15
 
     # optionally make birth rate scale inversely with p.c. income
     population_control = False
-    max_birth_rate =  0.15 
+    max_birth_rate = 0.15
     min_birth_rate = -0.2
     shift = 0.325
 

@@ -224,11 +224,14 @@ class Model(parameters):
         """
 
         # EQUATION ###########################################################
-        self.spaciotemporal_precipitation =\
-            self.precip*(
-                1 + self.precipitationModulation[
-                    (np.ceil(t/self.climate_var) % 8).astype(int)])\
-            - self.veg_rainfall*self.cleared_land_neighbours
+        if self.precipitation_modulation:
+            self.spaciotemporal_precipitation =\
+                self.precip*(
+                    1 + self.precipitation_variation[
+                        (np.ceil(t/self.climate_var) % 8).astype(int)])\
+                - self.veg_rainfall*self.cleared_land_neighbours
+        else:
+            self.spaciotemporal_precipitation = self.precip(1 - self.veg_rainfall*self.cleared_land_neighbours)
         # EQUATION ###########################################################
 
     def get_waterflow(self):
@@ -412,7 +415,7 @@ class Model(parameters):
         # agricultural population density (people per cropped land)
         # determines the number of cells that can be cropped.
         ag_pop_density = [p/(
-                self.number_cropped_cells * self.area) for p in self.population]
+                self.number_cropped_cells[c] * self.area) for c, p in enumerate(self.population)]
         # occupied_cells is a mask of all occupied cells calculated as the
         # unification of the cropped cells of all settlements.
         occup = np.concatenate(self.cropped_cells, axis=1)
@@ -693,7 +696,10 @@ class Model(parameters):
         # TO DO: calculate this as the sum of cell values too!!!
         for city in self.populated_cities:
 # ##EQUATION###################################################################
-            self.eco_benefit[city] = self.r_es*np.nanmean(es[self.cells_in_influence[city]])
+            if self.eco_income_mode == "mean":
+                self.eco_benefit[city] = self.r_es_mean * np.nanmean(es[self.cells_in_influence[city]])
+            elif self.eco_income_mode == "sum":
+                self.eco_benefit[city] = self.r_es_sum * np.nansum(es[self.cells_in_influence[city]])
         self.eco_benefit[self.population == 0] = 0
 # ##EQUATION###################################################################
         return
