@@ -1,3 +1,8 @@
+from __future__ import print_function
+from __future__ import print_function
+from __future__ import print_function
+
+import cPickle
 import datetime
 import matplotlib.pyplot as plt
 import numpy as np
@@ -497,7 +502,7 @@ class Model(Parameters):
 
     def get_pop_mig(self):
         # gives population and out-migration
-        print "number of settlements", len(self.population)
+        print("number of settlements", len(self.population))
 
         # death rate correlates inversely with real income per capita
 
@@ -586,7 +591,8 @@ class Model(Parameters):
                      0 for index, value in enumerate(self.population)]
         return
 
-    def build_routes(self): 
+    @property
+    def build_routes(self):
         # cities with rank>0 are traders and establish links to neighbours
         for city in self.populated_cities:
             if (self.rank[city] != 0
@@ -602,9 +608,9 @@ class Model(Parameters):
                 # ignore failed cities (not necessary anymore. But check!)
                 for pop in self.population:
                     if pop <= 0:
-                        print 'failed city found'
+                        print('failed city found')
                     elif np.isnan(pop):
-                        print 'nan city found'
+                        print('nan city found')
                 distances[self.population <= 0] = np.nan
                 distances[self.population == np.nan] = np.nan
                 if self.rank[city] == 3:
@@ -666,7 +672,7 @@ class Model(Parameters):
         #determine length of data vectors
         l_a = np.shape(a)[0]
         l_ic = np.shape(i_c)[0]
-        print 'number of trade links:', sum(a)/2
+        print('number of trade links:', sum(a) / 2)
 
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
@@ -856,14 +862,14 @@ class Model(Parameters):
         if self.output_level == 'trajectory':
             self.init_trajectory_output()
 
-        print "timeloop starts now"
+        print ("timeloop starts now")
 
         if interactive_output:
             visuals = Visuals()
 
         while t <= t_max:
             t += 1
-            print "time = ", t
+            print ("time = ", t)
 
             # evolve subselfs
             # ecosystem
@@ -883,7 +889,7 @@ class Model(Parameters):
             self.evolve_soil_deg()
             self.update_pop_gradient()
             self.get_rank()
-            cl = self.build_routes()
+            cl = self.build_routes
             self.get_comps()
             self.get_centrality()
             self.get_trade_income()
@@ -893,12 +899,16 @@ class Model(Parameters):
             self.kill_cities()
 
             if self.output_level == 'trajectory':
-                self.save_trajectory_output(t)
+                self.save_trajectory_output(t, [npp, wf, ag, es, bca])
             elif self.output_level == 'spatial':
                 self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned, sown, location)
             if interactive_output:
                 data = [sum(self.population), len(self.population)]
                 visuals.update_plots(data)
+        columns = self.trajectory.pop(0)
+        df = pandas.DataFrame(self.trajectory, columns=columns)
+        with open(location + 'trajectory.pkl', 'wb') as pkl:
+            cPickle.dump(df, pkl)
 
     def save_verbose_output(self, t, npp, wf, ag, es, bca, abandoned, sown, location):
 
@@ -958,9 +968,18 @@ class Model(Parameters):
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
-                                'mean_cluster_size'])
+                                'mean_cluster_size',
+                                'max_rain',
+                                'max_npp',
+                                'max_waterflow',
+                                'max_AG',
+                                'max_ES',
+                                'max_bca',
+                                'max_soil_deg',
+                                'max_pop_grad'])
 
-    def save_trajectory_output(self, time):
+    def save_trajectory_output(self, time, args):
+        # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
         total_settlements = len(self.population)
@@ -978,10 +997,17 @@ class Model(Parameters):
                                 income_agriculture,
                                 income_ecosystem,
                                 income_trade,
-                                mean_cluster_size])
+                                mean_cluster_size,
+                                np.nanmax(self.precip),
+                                np.nanmax(args[0]),
+                                np.nanmax(args[1]),
+                                np.nanmax(args[2]),
+                                np.nanmax(args[3]),
+                                np.nanmax(self.soil_deg),
+                                np.nanmax(self.pop_gradient)])
 
 if __name__ == "__main__":
-
+    import pandas
     N = 30
 
     # initialize Model
@@ -1000,4 +1026,5 @@ if __name__ == "__main__":
     model.output_level = 'trajectory'
     model.population_control = 'False'
     model.run(timesteps, location, interactive_output=True)
-    print model.trajectory
+
+
