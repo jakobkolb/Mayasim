@@ -64,7 +64,7 @@ if sub_experiment == 0:
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, repr(t_max)])
+              save_location_RES, repr(t_max)])
         moviefy(save_location_RES)
 
 # Experiment with crop income that is calculated as the
@@ -101,7 +101,7 @@ if sub_experiment == 1:
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              SAVE_PATH_RES, repr(t_max)])
+              save_location_RES, repr(t_max)])
         moviefy(save_location_RES)
 
 # plot results for both sub experiments
