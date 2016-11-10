@@ -2,7 +2,6 @@
 *.txt
 *.so
 output_data/*
-original_version/*
 ./*.npy
 *.odt
 cluster*.sh

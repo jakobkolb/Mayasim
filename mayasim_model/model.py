@@ -905,10 +905,12 @@ class Model(Parameters):
             if interactive_output:
                 data = [sum(self.population), len(self.population)]
                 visuals.update_plots(data)
-        columns = self.trajectory.pop(0)
-        df = pandas.DataFrame(self.trajectory, columns=columns)
-        with open(location + 'trajectory.pkl', 'wb') as pkl:
-            cPickle.dump(df, pkl)
+        if self.output_level == 'trajectory':
+            trj = self.trajectory
+            columns = trj.pop(0)
+            df = pandas.DataFrame(trj, columns=columns)
+            with open(location + 'trajectory.pkl', 'wb') as pkl:
+                cPickle.dump(df, pkl)
 
     def save_verbose_output(self, t, npp, wf, ag, es, bca, abandoned, sown, location):
 
