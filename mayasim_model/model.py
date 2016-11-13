@@ -47,11 +47,6 @@ class Model(Parameters):
 
         self.trajectory = []
 
-        if self.crop_income_mode == 'sum':
-            self.r_bca = self.r_bca_sum 
-        elif self.crop_income_mode == 'mean':
-            self.r_bca = self.r_bca_mean
-
         # *******************************************************************
         # MODEL DATA SOURCES
         # *******************************************************************
@@ -689,9 +684,9 @@ class Model(Parameters):
             crops = bca[self.cropped_cells[city][0], self.cropped_cells[city][1]]
 # ##EQUATION###################################################################
             if self.crop_income_mode == "mean":
-                self.crop_yield[city] = self.r_bca*np.nanmean(crops[crops>0])
+                self.crop_yield[city] = self.r_bca_mean*np.nanmean(crops[crops>0])
             elif self.crop_income_mode == "sum":
-                self.crop_yield[city] = self.r_bca*np.nansum(crops[crops>0])
+                self.crop_yield[city] = self.r_bca_sum*np.nansum(crops[crops>0])
 # ##EQUATION###################################################################
         self.crop_yield = [0 if np.isnan(self.crop_yield[index]) \
                 else self.crop_yield[index] for index in range(len(self.crop_yield))]

@@ -59,7 +59,7 @@ if sub_experiment == 0:
         m = Model(N)
         m.output_level = 'spatial'
         m.crop_income_mode = 'sum'
-        m.r_bca = r_bca_value
+        m.r_bca_sum = r_bca_value
         m.population_control = False
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
@@ -95,7 +95,7 @@ if sub_experiment == 1:
         m = Model(N)
         m.output_level = 'spatial'
         m.crop_income_mode = 'sum'
-        m.r_bca = r_bca_value
+        m.r_bca_sum = r_bca_value
         m.population_control = True
         m.run(t_max, save_location_RAW)
         m.save_run_variables(save_location_RAW)
