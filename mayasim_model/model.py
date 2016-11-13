@@ -1,6 +1,4 @@
 from __future__ import print_function
-from __future__ import print_function
-from __future__ import print_function
 
 import cPickle
 import datetime
@@ -502,7 +500,7 @@ class Model(Parameters):
 
     def get_pop_mig(self):
         # gives population and out-migration
-        print("number of settlements", len(self.population), flush=True)
+        print("number of settlements", len(self.population))
 
         # death rate correlates inversely with real income per capita
 
@@ -869,7 +867,7 @@ class Model(Parameters):
 
         while t <= t_max:
             t += 1
-            print ("time = ", t, flush=True)
+            print ("time = ", t)
 
             # evolve subselfs
             # ecosystem
