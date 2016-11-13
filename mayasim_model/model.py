@@ -866,6 +866,8 @@ class Model(Parameters):
         if interactive_output:
             visuals = Visuals()
 
+        self.save_run_variables(location)
+
         while t <= t_max:
             t += 1
             print ("time = ", t)

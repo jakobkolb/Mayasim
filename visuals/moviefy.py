@@ -5,7 +5,7 @@ import sys
 from subprocess import call
 
 
-def moviefy(input_folder, output_folder=None):
+def moviefy(input_folder, output_folder=None, rmold=False):
     # type: (str, str) -> object
 
     framerate = 8
@@ -26,8 +26,9 @@ def moviefy(input_folder, output_folder=None):
         del_string = input_folder + name + "*.png"
         output_string = output_folder + name.strip('_') + '.mp4'
         call(["ffmpeg", "-y", "-r", `framerate`, "-i", input_string, output_string])
-        for fl in glob.glob(del_string):
-            os.remove(fl)
+        if rmold:
+            for fl in glob.glob(del_string):
+                os.remove(fl)
 
 if __name__ == '__main__':
 

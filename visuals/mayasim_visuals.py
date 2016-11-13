@@ -1,25 +1,30 @@
+from __future__ import print_function
+
 import matplotlib as mpl
 import numpy as np
 import os
 import sys
+from shutil import copyfile
 
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, Normalize
 
-print sys.argv
+print(sys.argv)
 
 N = int(sys.argv[3])
-print N
+print(N)
 verbose = True
 
 data_directory = sys.argv[1]
 picture_directory = sys.argv[2]
-print "data dir: ", data_directory
-print "picture dir: ", picture_directory
+print("data dir: ", data_directory)
+print("picture dir: ", picture_directory)
 
 if not os.path.exists(picture_directory):
     os.makedirs(picture_directory)
+
+copyfile(data_directory + 'variables.npy', picture_directory + 'variables.npy')
 
 # Find max number of settlements
 number_settlements = 0
@@ -27,7 +32,7 @@ for i in range(1, N+1):
     tmp = np.load(data_directory + "number_settlements_{0:03d}.npy".format(i, ))
     if tmp>number_settlements:
         number_settlements = tmp
-print 'max number of settlements is: ', number_settlements
+print('max number of settlements is: ', number_settlements)
 
 # initialize variables to track overall evolution
 rain_evo = np.zeros((3,N))
