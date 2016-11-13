@@ -502,7 +502,7 @@ class Model(Parameters):
 
     def get_pop_mig(self):
         # gives population and out-migration
-        print("number of settlements", len(self.population))
+        print("number of settlements", len(self.population), flush=True)
 
         # death rate correlates inversely with real income per capita
 
@@ -869,7 +869,7 @@ class Model(Parameters):
 
         while t <= t_max:
             t += 1
-            print ("time = ", t)
+            print ("time = ", t, flush=True)
 
             # evolve subselfs
             # ecosystem
