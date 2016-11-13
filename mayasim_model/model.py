@@ -8,6 +8,7 @@ import os
 import pickle
 import scipy.ndimage as ndimage
 import scipy.sparse as sparse
+import sys
 
 from f90routines import f90routines
 
@@ -903,6 +904,7 @@ class Model(Parameters):
             if interactive_output:
                 data = [sum(self.population), len(self.population)]
                 visuals.update_plots(data)
+            sys.stdout.flush()
         if self.output_level == 'trajectory':
             trj = self.trajectory
             columns = trj.pop(0)
