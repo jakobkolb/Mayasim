@@ -81,3 +81,14 @@ if sub_experiment == 2:
     for x in [0, 1]:
         save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots'.format(x) + "/"
         moviefy(save_location_RES)
+
+# plot results for both sub experiments
+if sub_experiment == 3:
+    N = 30
+    t_max = 325
+
+    for x in [0, 1]:
+        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots/'.format(x)
+        save_location_RAW = SAVE_PATH_RAW + '_{:d}_npc/'.format(x)
+        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+              save_location_RES, repr(t_max)])

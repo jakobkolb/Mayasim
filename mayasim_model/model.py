@@ -205,8 +205,8 @@ class Model(Parameters):
             path to which the dictionary is saved
         """
 
-        dictionary = {key: value for key, value in self.__dict__.items()
-                      if not key.startswith('__') and not callable(key)}
+        dictionary = {attr: getattr(self, attr) for attr in dir(self)
+                      if not attr.startswith('__') and not callable(getattr(self, attr))}
 
         with open(path+'/variables.npy', 'wb') as f:
             pickle.dump(dictionary, f)
@@ -684,9 +684,9 @@ class Model(Parameters):
             crops = bca[self.cropped_cells[city][0], self.cropped_cells[city][1]]
 # ##EQUATION###################################################################
             if self.crop_income_mode == "mean":
-                self.crop_yield[city] = self.r_bca_mean*np.nanmean(crops[crops>0])
+                self.crop_yield[city] = self.r_bca_mean * np.nanmean(crops[crops>0])
             elif self.crop_income_mode == "sum":
-                self.crop_yield[city] = self.r_bca_sum*np.nansum(crops[crops>0])
+                self.crop_yield[city] = self.r_bca_sum * np.nansum(crops[crops>0])
 # ##EQUATION###################################################################
         self.crop_yield = [0 if np.isnan(self.crop_yield[index]) \
                 else self.crop_yield[index] for index in range(len(self.crop_yield))]

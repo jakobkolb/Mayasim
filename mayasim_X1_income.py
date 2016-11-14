@@ -71,10 +71,21 @@ if sub_experiment == 1:
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, repr(t_max)])
 
-# plot results for both sub experiments
+# movies of results for both sub experiments
 if sub_experiment == 2:
 
     t_max = 325
     for ex in [0, 1]:
-        save_location_RES = SAVE_PATH_RES + '_{}_pc_plots/'.format(ex) + "/"
+        save_location_RES = SAVE_PATH_RES + '_{}_pc_plots/'.format(ex)
         moviefy(save_location_RES)
+
+# plot results without movies (works on cluster)
+if sub_experiment == 3:
+
+    N = 30
+    t_max = 325
+
+    save_location_RES = SAVE_PATH_RES + '_{}_pc_plots/'.format(ex)
+    save_location_RAW = SAVE_PATH_RAW + '_{}_pc/'.format(ex)
+    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+          save_location_RES, repr(t_max)])

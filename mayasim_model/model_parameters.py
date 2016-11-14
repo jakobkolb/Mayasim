@@ -1,6 +1,6 @@
 import numpy as np
 
-class Parameters():
+class Parameters(object):
 
     # *******************************************************************
     # RUN PARAMETERS:

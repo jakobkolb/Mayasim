@@ -79,5 +79,17 @@ if sub_experiment == 2:
 
     t_max = 325
     for ex in ["drought", "nodrought"]:
-        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex) + "/"
+        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
         moviefy(save_location_RES)
+
+# plot results for both sub experiments
+if sub_experiment == 3:
+    N = 30
+    t_max = 325
+
+    for ex in ["drought", "nodrought"]:
+        save_location_RAW = SAVE_PATH_RAW + '_{}/'.format(ex)
+        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
+        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+              save_location_RES, repr(t_max)])
+
