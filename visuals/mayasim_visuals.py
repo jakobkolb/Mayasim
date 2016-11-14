@@ -481,7 +481,8 @@ def main_panel():
     lns = ln1 + ln2
     labs = [l.get_label() for l in lns]
     ax1.legend(lns, labs, loc=0)
-    plt.grid(axis='x')
+    ax1.grid(axis='x')
+    tax1.grid(axis='x')
     plt.title('population')
 
     # income sources (not stacked)
@@ -496,7 +497,8 @@ def main_panel():
     lns = ln21 + ln22 + ln23 + ln24
     labs = [l.get_label() for l in lns]
     ax2.legend(lns, labs, loc=0)
-    plt.grid(axis='x')
+    ax2.grid(axis='x')
+    tax2.grid(axis='x')
     plt.title('income')
 
     # forest state

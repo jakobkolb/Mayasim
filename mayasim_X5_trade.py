@@ -43,7 +43,7 @@ if sub_experiment == 0:
     m.population_control = False
     m.crop_income_mode = "sum"
     m.precipitation_modulation = False
-    m.r_trade=0.
+    m.r_trade = 0.
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
           save_location_RES, repr(t_max)])
@@ -70,7 +70,7 @@ if sub_experiment == 1:
     m = Model(N)
     m.population_control = False
     m.precipitation_modulation = True
-    m.r_trade=0.
+    m.r_trade = 0.
     m.crop_income_mode = "sum"
     m.run(t_max, save_location_RAW)
     call(["python", "visuals/mayasim_visuals.py", save_location_RAW,

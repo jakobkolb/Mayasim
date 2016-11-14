@@ -92,4 +92,3 @@ if sub_experiment == 3:
         save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
               save_location_RES, repr(t_max)])
-

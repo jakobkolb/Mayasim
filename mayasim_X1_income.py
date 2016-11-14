@@ -84,8 +84,8 @@ if sub_experiment == 3:
 
     N = 30
     t_max = 325
-
-    save_location_RES = SAVE_PATH_RES + '_{}_pc_plots/'.format(ex)
-    save_location_RAW = SAVE_PATH_RAW + '_{}_pc/'.format(ex)
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, repr(t_max)])
+    for ex in [0, 1]:
+        save_location_RES = SAVE_PATH_RES + '_{}_pc_plots/'.format(ex)
+        save_location_RAW = SAVE_PATH_RAW + '_{}_pc/'.format(ex)
+        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+              save_location_RES, repr(t_max)])

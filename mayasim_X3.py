@@ -102,7 +102,7 @@ if sub_experiment == 1:
         call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
               save_location_RES, repr(t_max)])
 
-# plot results for both sub experiments
+# movie of results for both sub experiments
 if sub_experiment == 2:
     print('plotting only')
 
@@ -115,5 +115,24 @@ if sub_experiment == 2:
         print(r_bca_value)
         for pop in ["pc", "npc"]:
             save_location_RES = SAVE_PATH_RES + \
-                                "_{0:03f}_{1}_plots".format(r_bca_value, pop, ) + "/"
+                                "_{0:03f}_{1}_plots/".format(r_bca_value, pop, )
             moviefy(save_location_RES)
+
+# plot results for both sub experiments
+if sub_experiment == 3:
+    print('plotting only')
+
+    t_max = 325
+
+    r_bca_values = np.linspace(0.08, 0.2, 7)
+    print(r_bca_values)
+
+    for i, r_bca_value in enumerate(r_bca_values):
+        print(r_bca_value)
+        for pop in ["pc", "npc"]:
+            save_location_RES = SAVE_PATH_RES + \
+                                "_{0:03f}_{1}_plots/".format(r_bca_value, pop, )
+            save_location_RAW = SAVE_PATH_RAW + \
+                                "_{0:03f}_{1}/".format(r_bca_value, pop, )
+            call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
+                  save_location_RES, repr(t_max)])
