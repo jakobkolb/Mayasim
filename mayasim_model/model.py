@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import cPickle
 import datetime
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -17,22 +18,62 @@ from model_parameters import Parameters
 
 class Visuals(object):
 
-    def __init__(self, columns=['population', 'N_settlements']):
+    def __init__(self, columns=['population', 'N_settlements'], shape=None,
+                 t_max=None):
+        self.t_max = t_max
+        self.shape = shape
+        self.ylen = len(columns)
+        self.xlen = self.ylen + 1
         self.columns = columns
         self.trajectory = []
         self.figure = plt.figure()
         self.axes = []
         for c, column in enumerate(self.columns):
-            self.axes.append(self.figure.add_subplot(len(columns), 1, c+1))
+            self.axes.append(plt.subplot2grid((self.ylen, self.xlen),
+                                              (c, 0)))
             self.axes[-1].set_title(column)
+        self.axes.append(plt.subplot2grid((self.ylen, self.xlen),
+                                          (0, 1), rowspan=self.xlen,
+                                          colspan=self.xlen))
+        if self.t_max is not None:
+            self.cmap = mpl.cm.Blues
+            self.norm = mpl.colors.Normalize(vmin=0, vmax=self.t_max)
+            scmpl = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.cmap)
+            scmpl.set_array(np.array([0, self.t_max]))
+            cbar = plt.colorbar(scmpl, ax=self.axes[-1])
         plt.ion()
 
-    def update_plots(self, data):
+    def update_plots(self, data=None, pos=None, adj=None, t_inc=None, t_max=None):
         self.trajectory.append(data)
         for c, column in enumerate(self.columns):
             c_data = [d[c] for d in self.trajectory]
             self.axes[c].clear()
             self.axes[c].plot(c_data)
+            self.axes[c].set_title(column)
+        ax = self.axes[-1]
+        ax.clear()
+        ax.set_title('Trade-Network')
+        x = pos[0] + 0.5
+        y = pos[1] + 0.5
+        if self.t_max is not None:
+            t_inc[:] = [t / t_max for t in t_inc]
+            sct = ax.scatter(y, x, c=t_inc, cmap=self.cmap,
+                             norm=self.norm, zorder=2)
+        else:
+            t_max = max(t_inc)
+            print(t_max, np.mean(np.array(t_inc)))
+            cmap = mpl.cm.Blues
+            colors = [cmap(t / t_max) for t in t_inc]
+            sct = ax.scatter(y, x, c=colors, zorder=2)
+        generator = (i for i, x in np.ndenumerate(adj) if
+                     adj[i] == 1)
+        for i, j in generator:
+            ax.plot([y[i], y[j]], [x[i], x[j]], color="k", linewidth=0.5,
+                    zorder=1)
+
+        if self.shape is not None:
+            ax.set_xlim([0, self.shape[1]])
+            ax.set_ylim([self.shape[0], 0])
         plt.pause(0.05)
         pass
 
@@ -423,8 +464,10 @@ class Model(Parameters):
         # the age of settlements is increased here.
         self.age = [x+1 for x in self.age]
         # for each settlement: which cells to crop ?
-        # calculate utility first!
+        # calculate utility first! This can be accelerated, if calculations
+        # are only done in 40 km radius.
         for city in self.populated_cities:
+            # calculated scancil of possible cells:
             distances = np.sqrt(self.area*(
                 (self.settlement_positions[0][city] - self.coordinates[0])**2 +
                 (self.settlement_positions[1][city] - self.coordinates[1])**2))
@@ -499,10 +542,9 @@ class Model(Parameters):
         print("number of settlements", len(self.population))
 
         # death rate correlates inversely with real income per capita
+        death_rate_diff = self.max_death_rate - self.min_death_rate
 
-        death_rate_diffe = self.max_death_rate - self.min_death_rate
-
-        self.death_rate = [- death_rate_diffe * self.real_income_pc[i]
+        self.death_rate = [- death_rate_diff * self.real_income_pc[i]
                            + self.max_death_rate
                            for i in range(len(self.real_income_pc))]
         self.death_rate = [self.min_death_rate
@@ -512,22 +554,27 @@ class Model(Parameters):
                            else self.death_rate[i]
                            for i, value in enumerate(self.death_rate)]
 
-        # population control
+        # if population control,
+        # birth rate negatively correlates with population size
         if self.population_control:
-            self.birth_rate = [-(self.max_birth_rate
-                                 - self.min_birth_rate)/10000. * value
+
+            birth_rate_diff = self.max_birth_rate - self.min_birth_rate
+
+            self.birth_rate = [-birth_rate_diff/10000. * value
                                + self.shift if value > 5000
                                else self.birth_rate_parameter
                                for value in self.population]
+        # population grows according to effective growth rate
         self.population = [int((1. + self.birth_rate[i]
                                 - self.death_rate[i])*value)
                            for i, value in enumerate(self.population)]
         self.population = [value if value > 0 else 0
                            for value in self.population]
 
-        estab_cost = 900
-        self.population = [0 if value < estab_cost*0.4
+        # kills cities, if they are too small. Don't understand why.
+        self.population = [0 if value < self.min_city_size
                            else value for value in self.population]
+
         min_mig_rate = 0.
         max_mig_rate = 0.15
         mig_rate_diffe = max_mig_rate - min_mig_rate
@@ -599,14 +646,6 @@ class Model(Parameters):
                                         )))
                 # don't choose yourself as nearest neighbor
                 distances[city] = np.nan
-                # ignore failed cities (not necessary anymore. But check!)
-                for pop in self.population:
-                    if pop <= 0:
-                        print('failed city found')
-                    elif np.isnan(pop):
-                        print('nan city found')
-                distances[self.population <= 0] = np.nan
-                distances[self.population == np.nan] = np.nan
                 if self.rank[city] == 3:
                     treshold = 31. * (self.thresh_rank_3 / self.thresh_rank_3 *
                                       0.5 + 1.)
@@ -625,10 +664,7 @@ class Model(Parameters):
                     new_partner = np.nanargmax(self.population*nearby)
                     self.adjacency[city, new_partner] =\
                         self.adjacency[new_partner, city] = 1
-
-        cut_links = np.array([[True if value > 0 else False for value in self.population]])
-        self.adjacency *= cut_links*cut_links.T
-        return cut_links
+        return
 
     def get_comps(self): 
         # convert adjacency matrix to compressed sparse row format
@@ -659,11 +695,12 @@ class Model(Parameters):
 
         # extract data vector, row index vector and index pointer vector
         a = adjacency_csr.data
-        # add one to make indexing compatible to fortran (where indices start counting with 1)
+        # add one to make indexing compatible to fortran
+        # (where indices start counting with 1)
         j_a = adjacency_csr.indices+1
         i_c = adjacency_csr.indptr+1
 
-        #determine length of data vectors
+        # determine length of data vectors
         l_a = np.shape(a)[0]
         l_ic = np.shape(i_c)[0]
         print('number of trade links:', sum(a) / 2)
@@ -671,7 +708,10 @@ class Model(Parameters):
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
         if l_a > 0:
-            tmp_centrality = f90routines.f90sparsecentrality(i_c, a, j_a, self.number_settlements, l_ic, l_a)
+            tmp_centrality = f90routines\
+                .f90sparsecentrality(i_c, a, j_a,
+                                     self.number_settlements,
+                                     l_ic, l_a)
             self.centrality = list(tmp_centrality) 
         elif l_a == 0:
             self.centrality = [1]*(l_ic-1)
@@ -707,11 +747,16 @@ class Model(Parameters):
 
     def get_trade_income(self ):
 # ##EQUATION###################################################################
-        self.trade_income = [1./30.*(1 +
-                                     self.comp_size[i]/self.centrality[i])**0.9 for i in range(len(self.centrality))]
+        #self.trade_income = [1./30.*(1 +
+        #                             self.comp_size[i]/self.centrality[i])**0.9
+        #                     for i in range(len(self.centrality))]
+        self.trade_income = [1./10.*(1 +
+                                     self.comp_size[i]/self.centrality[i])**0.9
+                             for i in range(len(self.centrality))]
         self.trade_income = [self.r_trade if value>1 else
                              0 if (value<0 or self.degree[index]==0) else
-                             self.r_trade*value for index, value in enumerate(self.trade_income)]
+                             self.r_trade*value
+                             for index, value in enumerate(self.trade_income)]
 # ##EQUATION###################################################################
         return
 
@@ -835,8 +880,6 @@ class Model(Parameters):
         self.adjacency = np.append(self.adjacency, [[0]*N], 0)
         self.adjacency = np.append(self.adjacency, [[0]]*(N+1), 1)
         self.degree.append(0)
-        self.comp_size.append(0)
-        self.centrality.append(0)
         self.trade_income.append(0)
         self.real_income_pc.append(0)
 
@@ -847,11 +890,16 @@ class Model(Parameters):
         t = 0
 
         # initialize variables
-        npp = np.zeros((self.rows,self.columns))  # net primary productivity
-        wf = np.zeros((self.rows,self.columns))   # water flow
-        ag = np.zeros((self.rows,self.columns))   # agricultural productivity
-        es = np.zeros((self.rows,self.columns))   # ecosystem services
-        bca = np.zeros((self.rows,self.columns))  # benefit cost map for agriculture
+        # net primary productivity
+        npp = np.zeros((self.rows,self.columns))
+        # water flow
+        wf = np.zeros((self.rows,self.columns))
+        # agricultural productivity
+        ag = np.zeros((self.rows,self.columns))
+        # ecosystem services
+        es = np.zeros((self.rows,self.columns))
+        # benefit cost map for agriculture
+        bca = np.zeros((self.rows,self.columns))
 
         if self.output_level == 'trajectory':
             self.init_trajectory_output()
@@ -859,7 +907,7 @@ class Model(Parameters):
         print ("timeloop starts now")
 
         if interactive_output:
-            visuals = Visuals()
+            visuals = Visuals(shape=(self.rows, self.columns))
 
         self.save_run_variables(location)
 
@@ -872,7 +920,9 @@ class Model(Parameters):
             self.update_precipitation(t)
             npp = self.net_primary_prod()
             self.forest_evolve(npp)
-            wf = self.get_waterflow()[1]  # this is curious: only waterflow is used, water level is abandoned.
+            # this is curious: only waterflow is used,
+            # water level is abandoned.
+            wf = self.get_waterflow()[1]
             ag = self.get_ag(npp,wf)
             es = self.get_ecoserv(ag,wf)
             bca = self.benefit_cost(ag)
@@ -897,10 +947,13 @@ class Model(Parameters):
             if self.output_level == 'trajectory':
                 self.save_trajectory_output(t, [npp, wf, ag, es, bca])
             elif self.output_level == 'spatial':
-                self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned, sown, location)
+                self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned,
+                                         sown, location)
             if interactive_output:
                 data = [sum(self.population), len(self.population)]
-                visuals.update_plots(data)
+                visuals.update_plots(data=data, pos=self.settlement_positions,
+                                     adj=self.adjacency,
+                                     t_inc=self.trade_income)
             sys.stdout.flush()
         if self.output_level == 'trajectory':
             trj = self.trajectory
@@ -909,7 +962,8 @@ class Model(Parameters):
             with open(location + 'trajectory.pkl', 'wb') as pkl:
                 cPickle.dump(df, pkl)
 
-    def save_verbose_output(self, t, npp, wf, ag, es, bca, abandoned, sown, location):
+    def save_verbose_output(self, t, npp, wf, ag, es, bca,
+                            abandoned, sown, location):
 
         def stack_ragged(array_list, axis=0):
             lengths = [np.shape(a)[axis] for a in array_list]
@@ -1007,7 +1061,7 @@ class Model(Parameters):
 
 if __name__ == "__main__":
     import pandas
-    N = 30
+    N = 500
 
     # initialize Model
     model = Model(N, '../input_data/')
@@ -1015,7 +1069,9 @@ if __name__ == "__main__":
     # define saving location
     comment = "testing_version"
     now = datetime.datetime.now()
-    location = "output_data/"+now.strftime("%d_%m_%H-%M-%Ss")+"_Output_"+comment + '/'
+    location = "output_data/" \
+               + now.strftime("%d_%m_%H-%M-%Ss") \
+               + "_Output_"+comment + '/'
     os.makedirs(location)
 
 

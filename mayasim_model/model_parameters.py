@@ -97,10 +97,12 @@ class Parameters(object):
     # DEMOGRAPHIC PARAMETERS
     birth_rate_parameter = 0.15
 
+    min_city_size = 360
+
     # optionally make birth rate scale inversely with p.c. income
     population_control = False
     max_birth_rate = 0.15
-    min_birth_rate = -0.2
+    min_birth_rate = 0.
     shift = 0.325
 
     # death rate correlates inversely with real income p.c.
