@@ -10,6 +10,7 @@ import pickle
 import scipy.ndimage as ndimage
 import scipy.sparse as sparse
 import sys
+from itertools import compress
 
 from f90routines import f90routines
 
@@ -62,14 +63,15 @@ class Visuals(object):
         else:
             t_max = max(t_inc)
             print(t_max, np.mean(np.array(t_inc)))
+        if t_max > 0:
             cmap = mpl.cm.Blues
             colors = [cmap(t / t_max) for t in t_inc]
             sct = ax.scatter(y, x, c=colors, zorder=2)
-        generator = (i for i, x in np.ndenumerate(adj) if
-                     adj[i] == 1)
-        for i, j in generator:
-            ax.plot([y[i], y[j]], [x[i], x[j]], color="k", linewidth=0.5,
-                    zorder=1)
+            generator = (i for i, x in np.ndenumerate(adj) if
+                        adj[i] == 1)
+            for i, j in generator:
+                ax.plot([y[i], y[j]], [x[i], x[j]], color="k", linewidth=0.5,
+                        zorder=1)
 
         if self.shape is not None:
             ax.set_xlim([0, self.shape[1]])
@@ -135,6 +137,7 @@ class Model(Parameters):
         self.land_patches = np.asarray(np.where(np.isfinite(self.elev)))
         self.number_of_land_patches = self.land_patches.shape[1]
 
+        # lengh unit - total map is about 500 km wide
         self.area = 516484./len(self.land_patches[0])
         self.elev[:, 0] = np.inf
         self.elev[:, -1] = np.inf
@@ -214,7 +217,7 @@ class Model(Parameters):
         for city in self.populated_cities:
             self.cropped_cells[city] = [[self.settlement_positions[0, city]],
                                         [self.settlement_positions[1, city]]]
-
+        print(self.cropped_cells[1])
         self.occupied_cells = np.zeros((self.rows, self.columns))
         self.number_cropped_cells = [0] * n
         self.crop_yield = [0.] * n
@@ -423,15 +426,18 @@ class Model(Parameters):
         not explained any further...
         """
         self.area_of_influence = [(x**0.8)/60. for x in self.population]
+        self.area_of_influence = [value for value in self.area_of_influence
+                                  if value < 40.]
         for city in self.populated_cities:
-            stencil = (self.area*(
-                (self.settlement_positions[0][city] - self.coordinates[0])**2 +
-                (self.settlement_positions[1][city] - self.coordinates[1])**2)
-            ) <= self.area_of_influence[city]**2
+            distance = np.sqrt(
+                (self.cell_width * (self.settlement_positions[0][city]
+                                    - self.coordinates[0])) ** 2 +
+                (self.cell_height * (self.settlement_positions[1][city]
+                                     - self.coordinates[1])) ** 2)
+            stencil = distance <= self.area_of_influence[city]
             self.cells_in_influence[city] = self.coordinates[:, stencil]
         self.number_cells_in_influence = [len(x[0])
                                           for x in self.cells_in_influence]
-
         return
 
     def get_cropped_cells(self, bca):
@@ -467,68 +473,98 @@ class Model(Parameters):
         # calculate utility first! This can be accelerated, if calculations
         # are only done in 40 km radius.
         for city in self.populated_cities:
-            # calculated scancil of possible cells:
-            distances = np.sqrt(self.area*(
-                (self.settlement_positions[0][city] - self.coordinates[0])**2 +
-                (self.settlement_positions[1][city] - self.coordinates[1])**2))
-        # EQUATION ###########################################################
-            utility = bca\
-                - self.estab_cost\
-                - (self.ag_travel_cost * distances)\
-                / np.sqrt(self.population[city])
-        # EQUATION ###########################################################
 
-            # 1) abandon cells if population too low after cities age > 5 years
+            cells = zip(self.cells_in_influence[city][0],
+                        self.cells_in_influence[city][1])
+            # EQUATION ###########################################################
+            utility = [bca[x, y] - self.estab_cost
+                       - (self.ag_travel_cost * np.sqrt(
+                (self.cell_width * (self.settlement_positions[0][city]
+                                    - self.coordinates[0][x, y])) ** 2 +
+                (self.cell_height * (self.settlement_positions[1][city]
+                                     - self.coordinates[1][x, y])) ** 2))
+                       / np.sqrt(self.population[city]) for (x, y) in cells]
+
+            available = [True if self.occupied_cells[x, y] == 0
+                             else False for (x, y) in cells]
+
+            # jointly sort utilities, availability and cells such that cells
+            # with highest utility are first.
+            sorted_utility, sorted_available, sorted_cells = \
+                zip(*sorted(zip(utility, available, cells),
+                            reverse=True))
+            # of these sorted lists, sort filter only available cells
+            available_util = list(compress(list(sorted_utility),
+                                           list(sorted_available)))
+            available_cells = list(compress(list(sorted_cells),
+                                            list(sorted_available)))
+
+            # save local copy of all cropped cells
+            cropped_cells = zip(*self.cropped_cells[city])
+            # select utilities for these cropped cells
+            cropped_utils = [utility[cells.index(cell)]
+                             for cell in cropped_cells]
+            # sort utilitites and cropped cells to lowest utilities first
+            occupied_util, occupied_cells = \
+                zip(*sorted(zip(cropped_utils, cropped_cells)))
+
+            # 1.) include new cells if population exceeds a threshold
+
+            # calculate number of new cells to crop
+            number_of_new_cells = np.floor(ag_pop_density[city]
+                                           / self.max_people_per_cropped_cell)\
+                .astype('int')
+            # and crop them by selecting cells with positive utility from the
+            # beginning of the list
+            for n in range(number_of_new_cells):
+                if available_util[n] > 0:
+                    self.occupied_cells[available_cells[n]] = 1
+                    for dim in range(2):
+                        self.cropped_cells[city][dim]\
+                            .append(available_cells[n][dim])
+
+            # 2.) abandon cells if population too low after cities age > 5 years
+
             if (ag_pop_density[city]
-                    < self.min_people_per_cropped_cell and self.age[city] > 5):
-                # There are some inconsistencies here. Cells are abandoned, 
-                # if the 'people per cropped land' is lower then a threshold 
+                    < self.min_people_per_cropped_cell and self.age[
+                city] > 5):
+                # There are some inconsistencies here. Cells are abandoned,
+                # if the 'people per cropped land' is lower then a threshold
                 # for 'people per cropped cells. Then the number of cells to
-                # abandon is calculated as 30/people per cropped land. Why?! 
+                # abandon is calculated as 30/people per cropped land. Why?!
                 # (check the original version!)
-                for number_lost_cells\
-                        in xrange(np.ceil(
-                            30/ag_pop_density[city]).astype('int')):
-                    # give up cell with lowest utility
-                    cells = self.cropped_cells[city]
-                    abandon_index = np.argmin(utility[cells[0], cells[1]])
-                    coord = self.cropped_cells[city][:, abandon_index]
-                    self.cropped_cells[city] =\
-                        np.delete(self.cropped_cells[city], abandon_index, 1)
-                    self.occupied_cells[coord[0], coord[1]] = 0
+
+                number_of_lost_cells = np.ceil(
+                            30 / ag_pop_density[city]).astype('int')
+
+                # TO DO: recycle utility and cell list to do this faster.
+                # therefore, filter cropped cells from utility list
+                # and delete last n cells.
+                
+                for n in range(min([number_of_lost_cells, len(occupied_cells)])):
+                    dropped_cell = occupied_cells[n]
+                    self.occupied_cells[dropped_cell] = 0
+                    for dim in range(2):
+                        self.cropped_cells[city][dim] \
+                            .remove(dropped_cell[dim])
                     abandoned += 1
 
-            # 2.) include new cells if population exceeds a threshold
-            for number_new_cells in xrange(
-                    np.floor(ag_pop_density[city]
-                             / self.max_people_per_cropped_cell)
-                    .astype('int')):
-                # Find area of influence of settlement
-                influence = np.zeros((self.rows, self.columns))
-                influence[self.cells_in_influence[city][0],
-                          self.cells_in_influence[city][1]] = 1
-                # In this area, select unused cells (in influence&not cropped)
-                self.available =\
-                    np.logical_and(influence.astype('bool'),
-                            np.logical_not(self.occupied_cells.astype('bool')))
-                #From these cells pick the one with the highest positive
-                #utility and crop it
-                if np.any(utility[self.available] > 0):
-                    newcell_index = np.unravel_index(np.nanargmax(utility*self.available),utility.shape)
-                    self.occupied_cells[newcell_index] = 1
-                    self.cropped_cells[city] = np.append(self.cropped_cells[city]
-                                ,np.array([[newcell_index[0]], [newcell_index[1]]]), 1)
-                    sown += 1
-
             # 3.) abandon cells with utility <= 0
-            ut_negative = utility[self.cropped_cells[city][0], self.cropped_cells[city][1]] <= 0
-            if np.sum(ut_negative) > 0:
-                abandon_ind = np.where(ut_negative)[0]
-                coor = [[self.cropped_cells[city][0][ind_x]
-                         for ind_x in abandon_ind], [self.cropped_cells[city][1][ind_y] for ind_y in abandon_ind]]
-                self.cropped_cells[city] = np.delete(self.cropped_cells[city], abandon_ind, 1)
-                self.occupied_cells[coor[0], coor[1]] = 0
-                abandoned += len(abandon_ind)
+
+            # find cells that have negative utility and belong to city under
+            # consideration,
+            useless_cropped_cells = [occupied_cells[i]
+                                     for i in range(len(occupied_cells))
+                                     if occupied_util[i] < 0
+                                     and occupied_cells[i]
+                                     in zip(*self.cropped_cells[city])]
+            # and release them.
+            for useless_cropped_cell in useless_cropped_cells:
+                self.occupied_cells[useless_cropped_cell] = 0
+                for dim in range(2):
+                    self.cropped_cells[city][dim] \
+                        .remove(useless_cropped_cell[dim])
+                abandoned += 1
 
         # Finally, update list of lists containing cropped cells for each city
         # with positive population.
@@ -614,7 +650,7 @@ class Model(Parameters):
     def evolve_soil_deg(self):
         # soil degrades for cropped cells
 
-        cropped = np.concatenate(self.cropped_cells, axis=1)
+        cropped = np.concatenate(self.cropped_cells, axis=1).astype('int')
         self.soil_deg[cropped[0], cropped[1]] += self.deg_rate
         self.soil_deg[self.forest_state == 3] -= self.reg_rate
         self.soil_deg[self.soil_deg < 0] = 0
@@ -750,7 +786,7 @@ class Model(Parameters):
         #self.trade_income = [1./30.*(1 +
         #                             self.comp_size[i]/self.centrality[i])**0.9
         #                     for i in range(len(self.centrality))]
-        self.trade_income = [1./10.*(1 +
+        self.trade_income = [1./5.*(1 +
                                      self.comp_size[i]/self.centrality[i])**0.9
                              for i in range(len(self.centrality))]
         self.trade_income = [self.r_trade if value>1 else
@@ -1061,7 +1097,7 @@ class Model(Parameters):
 
 if __name__ == "__main__":
     import pandas
-    N = 500
+    N = 50
 
     # initialize Model
     model = Model(N, '../input_data/')
