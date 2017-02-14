@@ -5,7 +5,7 @@ import sys
 from subprocess import call
 
 
-def moviefy(input_folder, output_folder=None, rmold=False):
+def moviefy(input_folder, output_folder=None, rmold=False, namelist=['image_']):
     # type: (str, str) -> object
 
     framerate = 8
@@ -15,11 +15,11 @@ def moviefy(input_folder, output_folder=None, rmold=False):
     input_folder = '/' + input_folder.strip('/') + '/'
     output_folder = '/' + output_folder.strip('/') + '/'
 
-    namelist = ['AG_', 'bca_', 'es_',
-                'forest', 'influence_cropped_b_',
-                'npp_', 'pop_grad_', 'rain_',
-                'soil_deg_', 'trade_network_',
-                'waterflow_']
+    # namelist = ['AG_', 'bca_', 'es_',
+    #             'forest', 'influence_cropped_b_',
+    #             'npp_', 'pop_grad_', 'rain_',
+    #             'soil_deg_', 'trade_network_',
+    #             'waterflow_']
 
     for name in namelist:
         input_string = input_folder + name + "%03d.png"

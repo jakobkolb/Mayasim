@@ -152,7 +152,7 @@ if sub_experiment == 0:
     compute(SAVE_PATH_RAW)
     resave(SAVE_PATH_RAW, SAVE_PATH_RES, SAMPLE_SIZE)
     call(["python", "visuals/mayasim_visuals.py", SAVE_PATH_RAW,
-          SAVE_PATH_RES, `t_max`])
+          SAVE_PATH_RES, `steps[0]`])
 
 
 if sub_experiment == 1:
@@ -173,4 +173,4 @@ if sub_experiment == 1:
 
     resave(SAVE_PATH_RAW, SAVE_PATH_RES, SAMPLE_SIZE)
     call(["python", "visuals/mayasim_visuals.py", SAVE_PATH_RAW,
-          SAVE_PATH_RES, `t_max`])
+          SAVE_PATH_RES, `steps[0]`])

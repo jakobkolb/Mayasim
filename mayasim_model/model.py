@@ -2,87 +2,30 @@ from __future__ import print_function
 
 import cPickle
 import datetime
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
 import scipy.ndimage as ndimage
 import scipy.sparse as sparse
-import sys
 from itertools import compress
 
+import pandas
 from f90routines import f90routines
 
 from model_parameters import Parameters
 
 
-class Visuals(object):
 
-    def __init__(self, columns=['population', 'N_settlements'], shape=None,
-                 t_max=None):
-        self.t_max = t_max
-        self.shape = shape
-        self.ylen = len(columns)
-        self.xlen = self.ylen + 1
-        self.columns = columns
-        self.trajectory = []
-        self.figure = plt.figure()
-        self.axes = []
-        for c, column in enumerate(self.columns):
-            self.axes.append(plt.subplot2grid((self.ylen, self.xlen),
-                                              (c, 0)))
-            self.axes[-1].set_title(column)
-        self.axes.append(plt.subplot2grid((self.ylen, self.xlen),
-                                          (0, 1), rowspan=self.xlen,
-                                          colspan=self.xlen))
-        if self.t_max is not None:
-            self.cmap = mpl.cm.Blues
-            self.norm = mpl.colors.Normalize(vmin=0, vmax=self.t_max)
-            scmpl = mpl.cm.ScalarMappable(norm=self.norm, cmap=self.cmap)
-            scmpl.set_array(np.array([0, self.t_max]))
-            cbar = plt.colorbar(scmpl, ax=self.axes[-1])
-        plt.ion()
-
-    def update_plots(self, data=None, pos=None, adj=None, t_inc=None, t_max=None):
-        self.trajectory.append(data)
-        for c, column in enumerate(self.columns):
-            c_data = [d[c] for d in self.trajectory]
-            self.axes[c].clear()
-            self.axes[c].plot(c_data)
-            self.axes[c].set_title(column)
-        ax = self.axes[-1]
-        ax.clear()
-        ax.set_title('Trade-Network')
-        x = pos[0] + 0.5
-        y = pos[1] + 0.5
-        if self.t_max is not None:
-            t_inc[:] = [t / t_max for t in t_inc]
-            sct = ax.scatter(y, x, c=t_inc, cmap=self.cmap,
-                             norm=self.norm, zorder=2)
-        else:
-            t_max = max(t_inc)
-            print(t_max, np.mean(np.array(t_inc)))
-        if t_max > 0:
-            cmap = mpl.cm.Blues
-            colors = [cmap(t / t_max) for t in t_inc]
-            sct = ax.scatter(y, x, c=colors, zorder=2)
-            generator = (i for i, x in np.ndenumerate(adj) if
-                        adj[i] == 1)
-            for i, j in generator:
-                ax.plot([y[i], y[j]], [x[i], x[j]], color="k", linewidth=0.5,
-                        zorder=1)
-
-        if self.shape is not None:
-            ax.set_xlim([0, self.shape[1]])
-            ax.set_ylim([self.shape[0], 0])
-        plt.pause(0.05)
-        pass
 
 
 class Model(Parameters):
 
-    def __init__(self, n=30, input_data_location="./input_data/"):
+    def __init__(self, n=30, interactive_output=False,
+                 input_data_location="./input_data/",
+                 output_data_location='./'):
+
+        self.interactive_output = interactive_output
+        self.output_data_location = output_data_location
 
         # *******************************************************************
         # MODEL PARAMETERS (to be varied)
@@ -94,13 +37,16 @@ class Model(Parameters):
         # MODEL DATA SOURCES
         # *******************************************************************
 
-        # documentation for TEMPERATURE and PRECIPITATION data can be found here: http://www.worldclim.org/formats
-        # apparently temperature data is given in x*10 format to allow for smaller file sizes.
+        # documentation for TEMPERATURE and PRECIPITATION data can be found
+        # here: http://www.worldclim.org/formats
+        # apparently temperature data is given in x*10 format to allow for
+        # smaller file sizes.
         # original version of mayasim divides temperature by 12 though
         self.temp = np.load(input_data_location + '0_RES_432x400_temp.npy')/12.
 
-        # precipitation in mm or liters per square meter (comparing the numbers to 
-        # numbers from Wikipedia suggests, that it is given per year) 
+        # precipitation in mm or liters per square meter
+        # (comparing the numbers to numbers from Wikipedia suggests
+        # that it is given per year)
         self.precip = np.load(input_data_location + '0_RES_432x400_precip.npy')
 
         # in meters above sea level
@@ -108,10 +54,14 @@ class Model(Parameters):
         self.slope = np.load(input_data_location + '0_RES_432x400_slope.npy')
 
         # documentation for SOIL PRODUCTIVITY is given at:
-        # http://www.fao.org/geonetwork/srv/en/main.home?uuid=f7a2b3c0-bdbf-11db-a0f6-000d939bc5d8
-        # The soil production index considers the suitability of the best adapted crop to each soils 
-        # condition in an area and makes a weighted average for all soils present in a pixel based 
-        # on the formula: 0.9 * VS + 0.6 * S + 0.3 * MS + 0 * NS. Values range from 0 (bad) to 6 (good)
+        # http://www.fao.org/geonetwork/srv/en/
+        # main.home?uuid=f7a2b3c0-bdbf-11db-a0f6-000d939bc5d8
+        # The soil production index considers the suitability
+        # of the best adapted crop to each soils
+        # condition in an area and makes a weighted average for
+        #  all soils present in a pixel based
+        # on the formula: 0.9 * VS + 0.6 * S + 0.3 * MS + 0 * NS.
+        # Values range from 0 (bad) to 6 (good)
         self.soilprod = np.load(input_data_location + '0_RES_432x400_soil.npy')
         # NETLOGO version sets soilprod > 6 to 1.5. 
         # would make more sense to cap it though..
@@ -120,7 +70,8 @@ class Model(Parameters):
         # it also sets soil productivity to 1.5 where the elevation is <= 1
         self.soilprod[self.elev <= 1] = 1.5
         # smoothen soil productivity dataset
-        self.soilprod = ndimage.gaussian_filter(self.soilprod, sigma=(2, 2), order=0)
+        self.soilprod = ndimage.gaussian_filter(self.soilprod,
+                                                sigma=(2, 2), order=0)
         # and set to zero for non land cells
         self.soilprod[np.isnan(self.elev)] = 0
 
@@ -143,10 +94,13 @@ class Model(Parameters):
         self.elev[:, -1] = np.inf
         self.elev[0, :] = np.inf
         self.elev[-1, :] = np.inf
-        # create a list of the index values i = (x, y) of the land patches with finite elevation h
-        self.list_of_land_patches = [i for i, h in np.ndenumerate(self.elev) if np.isfinite(self.elev[i])]
+        # create a list of the index values i = (x, y) of the land
+        # patches with finite elevation h
+        self.list_of_land_patches = [i for i, h in np.ndenumerate(self.elev)
+                                     if np.isfinite(self.elev[i])]
 
-        # initialize soil degradation and population gradient (influencing the forest)
+        # initialize soil degradation and population
+        # gradient (influencing the forest)
 
         # *******************************************************************
         # INITIALIZE ECOSYSTEM
@@ -158,8 +112,10 @@ class Model(Parameters):
         # Forest
         self.forest_state = np.zeros((self.rows, self.columns), dtype=int)
         self.forest_memory = np.zeros((self.rows, self.columns), dtype=int)
-        self.cleared_land_neighbours = np.zeros((self.rows, self.columns), dtype=int)
-        # The forest has three states: 3=climax forest, 2=secondary regrowth, 1=cleared land.
+        self.cleared_land_neighbours = np.zeros((self.rows, self.columns),
+                                                dtype=int)
+        # The forest has three states: 3=climax forest,
+        # 2=secondary regrowth, 1=cleared land.
         for i in self.list_of_land_patches:
             self.forest_state[i] = 3
 
@@ -193,7 +149,9 @@ class Model(Parameters):
         # demographic variables
         self.birth_rate = [self.birth_rate_parameter] * n
         self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(n)]
-        self.population = list(np.random.randint(self.min_init_inhabitants, self.max_init_inhabitants, n).astype(float))
+        self.population = list(np.random.randint(self.min_init_inhabitants,
+                                                 self.max_init_inhabitants,
+                                                 n).astype(float))
         self.mig_rate = [0.] * n
         self.out_mig = [0] * n
         self.pioneer_set = []
@@ -217,7 +175,7 @@ class Model(Parameters):
         for city in self.populated_cities:
             self.cropped_cells[city] = [[self.settlement_positions[0, city]],
                                         [self.settlement_positions[1, city]]]
-        print(self.cropped_cells[1])
+        # print(self.cropped_cells[1])
         self.occupied_cells = np.zeros((self.rows, self.columns))
         self.number_cropped_cells = [0] * n
         self.crop_yield = [0.] * n
@@ -235,7 +193,7 @@ class Model(Parameters):
         # total real income per capita
         self.real_income_pc = [0] * n
 
-    def save_run_variables(self, path):
+    def save_run_variables(self):
         """
         Saves all variables and values of the class instance 'self'
         in a dictionary file at the location given by 'path'
@@ -244,15 +202,12 @@ class Model(Parameters):
         -----------
         self: class instance
             class instance whose variables are saved
-
-        path: string
-            path to which the dictionary is saved
         """
 
         dictionary = {attr: getattr(self, attr) for attr in dir(self)
                       if not attr.startswith('__') and not callable(getattr(self, attr))}
 
-        with open(path+'/variables.npy', 'wb') as f:
+        with open(self.output_data_location + '/variables.npy', 'wb') as f:
             pickle.dump(dictionary, f)
 
     def update_precipitation(self, t):
@@ -425,9 +380,11 @@ class Model(Parameters):
         these are the cells that are closer than population^0.8/60 (which is
         not explained any further...
         """
+# EQUATION ####################################################################
         self.area_of_influence = [(x**0.8)/60. for x in self.population]
-        self.area_of_influence = [value for value in self.area_of_influence
-                                  if value < 40.]
+        self.area_of_influence = [value if value < 40. else 40.
+                                  for value in self.area_of_influence]
+# EQUATION ####################################################################
         for city in self.populated_cities:
             distance = np.sqrt(
                 (self.cell_width * (self.settlement_positions[0][city]
@@ -476,7 +433,7 @@ class Model(Parameters):
 
             cells = zip(self.cells_in_influence[city][0],
                         self.cells_in_influence[city][1])
-            # EQUATION ###########################################################
+# EQUATION ########################################################
             utility = [bca[x, y] - self.estab_cost
                        - (self.ag_travel_cost * np.sqrt(
                 (self.cell_width * (self.settlement_positions[0][city]
@@ -484,7 +441,7 @@ class Model(Parameters):
                 (self.cell_height * (self.settlement_positions[1][city]
                                      - self.coordinates[1][x, y])) ** 2))
                        / np.sqrt(self.population[city]) for (x, y) in cells]
-
+# EQUATION ########################################################
             available = [True if self.occupied_cells[x, y] == 0
                              else False for (x, y) in cells]
 
@@ -502,11 +459,13 @@ class Model(Parameters):
             # save local copy of all cropped cells
             cropped_cells = zip(*self.cropped_cells[city])
             # select utilities for these cropped cells
-            cropped_utils = [utility[cells.index(cell)]
+            cropped_utils = [utility[cells.index(cell)] if cell in cells else -1
                              for cell in cropped_cells]
             # sort utilitites and cropped cells to lowest utilities first
-            occupied_util, occupied_cells = \
-                zip(*sorted(zip(cropped_utils, cropped_cells)))
+            city_has_crops = True if len(cropped_cells) > 0 else False
+            if city_has_crops:
+                occupied_util, occupied_cells = \
+                    zip(*sorted(zip(cropped_utils, cropped_cells)))
 
             # 1.) include new cells if population exceeds a threshold
 
@@ -516,55 +475,59 @@ class Model(Parameters):
                 .astype('int')
             # and crop them by selecting cells with positive utility from the
             # beginning of the list
-            for n in range(number_of_new_cells):
+            for n in range(min([number_of_new_cells, len(available_util)])):
                 if available_util[n] > 0:
                     self.occupied_cells[available_cells[n]] = 1
                     for dim in range(2):
                         self.cropped_cells[city][dim]\
                             .append(available_cells[n][dim])
 
-            # 2.) abandon cells if population too low after cities age > 5 years
+            if city_has_crops:
 
-            if (ag_pop_density[city]
-                    < self.min_people_per_cropped_cell and self.age[
-                city] > 5):
-                # There are some inconsistencies here. Cells are abandoned,
-                # if the 'people per cropped land' is lower then a threshold
-                # for 'people per cropped cells. Then the number of cells to
-                # abandon is calculated as 30/people per cropped land. Why?!
-                # (check the original version!)
+                # 2.) abandon cells if population too low
+                # after cities age > 5 years
 
-                number_of_lost_cells = np.ceil(
-                            30 / ag_pop_density[city]).astype('int')
+                if (ag_pop_density[city] < self.min_people_per_cropped_cell
+                        and self.age[city] > 5):
 
-                # TO DO: recycle utility and cell list to do this faster.
-                # therefore, filter cropped cells from utility list
-                # and delete last n cells.
-                
-                for n in range(min([number_of_lost_cells, len(occupied_cells)])):
-                    dropped_cell = occupied_cells[n]
-                    self.occupied_cells[dropped_cell] = 0
+                    # There are some inconsistencies here. Cells are abandoned,
+                    # if the 'people per cropped land' is lower then a
+                    # threshold for 'people per cropped cells. Then the
+                    # number of cells to abandon is calculated as 30/people
+                    # per cropped land. Why?! (check the original version!)
+
+                    number_of_lost_cells = np.ceil(
+                                30 / ag_pop_density[city]).astype('int')
+
+                    # TO DO: recycle utility and cell list to do this faster.
+                    # therefore, filter cropped cells from utility list
+                    # and delete last n cells.
+
+                    for n in range(min([number_of_lost_cells,
+                                        len(occupied_cells)])):
+                        dropped_cell = occupied_cells[n]
+                        self.occupied_cells[dropped_cell] = 0
+                        for dim in range(2):
+                            self.cropped_cells[city][dim] \
+                                .remove(dropped_cell[dim])
+                        abandoned += 1
+
+                # 3.) abandon cells with utility <= 0
+
+                # find cells that have negative utility and belong
+                # to city under consideration,
+                useless_cropped_cells = [occupied_cells[i]
+                                         for i in range(len(occupied_cells))
+                                         if occupied_util[i] < 0
+                                         and occupied_cells[i]
+                                         in zip(*self.cropped_cells[city])]
+                # and release them.
+                for useless_cropped_cell in useless_cropped_cells:
+                    self.occupied_cells[useless_cropped_cell] = 0
                     for dim in range(2):
                         self.cropped_cells[city][dim] \
-                            .remove(dropped_cell[dim])
+                            .remove(useless_cropped_cell[dim])
                     abandoned += 1
-
-            # 3.) abandon cells with utility <= 0
-
-            # find cells that have negative utility and belong to city under
-            # consideration,
-            useless_cropped_cells = [occupied_cells[i]
-                                     for i in range(len(occupied_cells))
-                                     if occupied_util[i] < 0
-                                     and occupied_cells[i]
-                                     in zip(*self.cropped_cells[city])]
-            # and release them.
-            for useless_cropped_cell in useless_cropped_cells:
-                self.occupied_cells[useless_cropped_cell] = 0
-                for dim in range(2):
-                    self.cropped_cells[city][dim] \
-                        .remove(useless_cropped_cell[dim])
-                abandoned += 1
 
         # Finally, update list of lists containing cropped cells for each city
         # with positive population.
@@ -575,7 +538,7 @@ class Model(Parameters):
 
     def get_pop_mig(self):
         # gives population and out-migration
-        print("number of settlements", len(self.population))
+        # print("number of settlements", len(self.population))
 
         # death rate correlates inversely with real income per capita
         death_rate_diff = self.max_death_rate - self.min_death_rate
@@ -583,12 +546,9 @@ class Model(Parameters):
         self.death_rate = [- death_rate_diff * self.real_income_pc[i]
                            + self.max_death_rate
                            for i in range(len(self.real_income_pc))]
-        self.death_rate = [self.min_death_rate
-                           if value < self.min_death_rate
-                           else self.max_death_rate
-                           if value > self.max_death_rate
-                           else self.death_rate[i]
-                           for i, value in enumerate(self.death_rate)]
+        self.death_rate = list(np.clip(self.death_rate,
+                                       self.min_death_rate,
+                                       self.max_death_rate))
 
         # if population control,
         # birth rate negatively correlates with population size
@@ -607,22 +567,16 @@ class Model(Parameters):
         self.population = [value if value > 0 else 0
                            for value in self.population]
 
-        # kills cities, if they are too small. Don't understand why.
-        self.population = [0 if value < self.min_city_size
-                           else value for value in self.population]
-
-        min_mig_rate = 0.
-        max_mig_rate = 0.15
-        mig_rate_diffe = max_mig_rate - min_mig_rate
+        mig_rate_diffe = self.max_mig_rate - self.min_mig_rate
 
         # outmigration rate also correlates
         # inversely with real income per capita
         self.mig_rate = [- mig_rate_diffe * self.real_income_pc[i]
-                         + max_mig_rate
+                         + self.max_mig_rate
                          for i in range(len(self.real_income_pc))]
-        self.mig_rate = [min_mig_rate if value < min_mig_rate
-                         else max_mig_rate if value > max_mig_rate
-                         else value for value in self.mig_rate]
+        self.mig_rate = list(np.clip(self.mig_rate,
+                                  self.min_mig_rate,
+                                  self.max_mig_rate))
         self.out_mig = [int(self.mig_rate[i]*self.population[i])
                         for i in range(len(self.population))]
         self.out_mig = [value if value > 0 else 0 for value in self.out_mig]
@@ -739,7 +693,7 @@ class Model(Parameters):
         # determine length of data vectors
         l_a = np.shape(a)[0]
         l_ic = np.shape(i_c)[0]
-        print('number of trade links:', sum(a) / 2)
+        # print('number of trade links:', sum(a) / 2)
 
         # if data vector is not empty, pass data to fortran routine.
         # else, just fill the centrality vector with ones.
@@ -783,12 +737,12 @@ class Model(Parameters):
 
     def get_trade_income(self ):
 # ##EQUATION###################################################################
-        #self.trade_income = [1./30.*(1 +
-        #                             self.comp_size[i]/self.centrality[i])**0.9
-        #                     for i in range(len(self.centrality))]
-        self.trade_income = [1./5.*(1 +
-                                     self.comp_size[i]/self.centrality[i])**0.9
-                             for i in range(len(self.centrality))]
+        self.trade_income = [1./30.*(1 +
+                                    self.comp_size[i]/self.centrality[i])**0.9
+                            for i in range(len(self.centrality))]
+        # self.trade_income = [1./5.*(1 +
+        #                              self.comp_size[i]/self.centrality[i])**0.9
+        #                      for i in range(len(self.centrality))]
         self.trade_income = [self.r_trade if value>1 else
                              0 if (value<0 or self.degree[index]==0) else
                              self.r_trade*value
@@ -797,6 +751,9 @@ class Model(Parameters):
         return
 
     def get_real_income_pc(self):
+        # prints = zip( self.population, self.crop_yield, self.eco_benefit, self.trade_income)
+        # for i, p in enumerate(sorted(prints)):
+        #     print(p)
         # combine agricultural, ecosystem service and trade benefit
 # ##EQUATION###################################################################
         self.real_income_pc = [(self.crop_yield[index] \
@@ -850,9 +807,11 @@ class Model(Parameters):
     def kill_cities(self):
 
         # kill cities if they have either no crops or no inhabitants:
-        dead_city_indices = [index for index in range(len(self.population)) if
-                             (self.population[index] <= 0 or
-                             (len(self.cropped_cells[index][0]) <= 0))]
+        dead_city_indices = [i for i in range(len(self.population))
+                             if self.population[i] <= self.min_city_size]
+        if self.kill_cities_without_crops:
+            dead_city_indices += [i for i in range(len(self.population))
+                                  if (len(self.cropped_cells[i][0]) <= 0)]
 
         # remove entries from variables
         # simple lists that can be deleted elementwise
@@ -919,8 +878,7 @@ class Model(Parameters):
         self.trade_income.append(0)
         self.real_income_pc.append(0)
 
-    def run(self, t_max, location, interactive_output=False):
-        # type: (int, basestring, bool) -> None
+    def run(self, t_max):
 
         # initialize time step
         t = 0
@@ -937,15 +895,9 @@ class Model(Parameters):
         # benefit cost map for agriculture
         bca = np.zeros((self.rows,self.columns))
 
-        if self.output_level == 'trajectory':
-            self.init_trajectory_output()
 
-        print ("timeloop starts now")
+        self.init_output()
 
-        if interactive_output:
-            visuals = Visuals(shape=(self.rows, self.columns))
-
-        self.save_run_variables(location)
 
         while t <= t_max:
             t += 1
@@ -980,22 +932,66 @@ class Model(Parameters):
             self.migration(es)
             self.kill_cities()
 
-            if self.output_level == 'trajectory':
-                self.save_trajectory_output(t, [npp, wf, ag, es, bca])
-            elif self.output_level == 'spatial':
-                self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned,
-                                         sown, location)
-            if interactive_output:
-                data = [sum(self.population), len(self.population)]
-                visuals.update_plots(data=data, pos=self.settlement_positions,
-                                     adj=self.adjacency,
-                                     t_inc=self.trade_income)
-            sys.stdout.flush()
+            self.frame_output(t, npp, wf, ag, es, bca,
+                              abandoned, sown)
+        self.finalize_output()
+
+    def init_output(self):
+
+        if self.output_level == 'trajectory':
+            self.init_trajectory_output()
+
+        if self.interactive_output:
+            visual_init_data = {'shape': (self.rows, self.columns),
+                                'location': self.output_data_location}
+            with open(self.output_data_location +
+                              '/init_frame.pkl', 'wb') as f:
+                cPickle.dump(visual_init_data, f)
+
+        self.save_run_variables()
+
+    def frame_output(self, t, npp, wf, ag, es, bca, abandoned, sown):
+        """
+        save stuff to location depending on output settings
+        Parameters
+
+        """
+        # append stuff to trajectory
+        if self.output_level == 'trajectory':
+                self.update_trajectory_output(t, [npp, wf, ag, es, bca])
+
+        # save maps of spatial data
+        elif self.output_level == 'spatial':
+            self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned,
+                                     sown, self.output_data_location)
+
+        # save dictionaries for video frame plots
+        if self.interactive_output:
+            data = {'population': self.population,
+                    'real_income': self.real_income_pc,
+                    'ag_income': [self.crop_yield[i]/population
+                                  for i, population
+                                  in enumerate(self.population)],
+                    'es_income': [self.eco_benefit[i]/population
+                                  for i, population
+                                  in enumerate(self.population)],
+                    'trade_income':[self.trade_income[i]/population
+                                    for i, population
+                                    in enumerate(self.population)],
+                    'adjacency': self.adjacency,
+                    'settlement_positions': self.settlement_positions,
+                    }
+            with open(self.output_data_location
+                              + '/frame_{0:03d}.pkl'.format(t), 'wb') as f:
+                cPickle.dump(data, f)
+
+    def finalize_output(self):
         if self.output_level == 'trajectory':
             trj = self.trajectory
             columns = trj.pop(0)
             df = pandas.DataFrame(trj, columns=columns)
-            with open(location + 'trajectory.pkl', 'wb') as pkl:
+            with open(self.output_data_location
+                              + '/trajectory.pkl', 'wb') as pkl:
                 cPickle.dump(df, pkl)
 
     def save_verbose_output(self, t, npp, wf, ag, es, bca,
@@ -1018,36 +1014,62 @@ class Model(Parameters):
             return np.split(stacked, idx, axis=axis)
 
         # save variables of interest
-        np.save(location + "rain_{0:03d}.npy".format(t, ), self.spaciotemporal_precipitation)
-        np.save(location + "npp_{0:03d}.npy".format(t, ), npp)
-        np.save(location + "forest_{0:03d}.npy".format(t, ), self.forest_state)
-        np.save(location + "waterflow_{0:03d}.npy".format(t, ), wf)
-        np.save(location + "AG_{0:03d}.npy".format(t, ), ag)
-        np.save(location + "ES_{0:03d}.npy".format(t, ), es)
-        np.save(location + "bca_{0:03d}.npy".format(t, ), bca)
+        np.save(location + "rain_{0:03d}.npy".format(t, ),
+                self.spaciotemporal_precipitation)
+        np.save(location + "npp_{0:03d}.npy".format(t, ),
+                npp)
+        np.save(location + "forest_{0:03d}.npy".format(t, ),
+                self.forest_state)
+        np.save(location + "waterflow_{0:03d}.npy".format(t, ),
+                wf)
+        np.save(location + "AG_{0:03d}.npy".format(t, ),
+                ag)
+        np.save(location + "ES_{0:03d}.npy".format(t, ),
+                es)
+        np.save(location + "bca_{0:03d}.npy".format(t, ),
+                bca)
+        save_stacked_array(location + "cells_in_influence_{0:03d}".format(t, ),
+                           self.cells_in_influence, axis=1)
+        np.save(location + "number_cells_in_influence_{0:03d}.npy".format(t, ),
+                self.number_cells_in_influence)
+        save_stacked_array(location + "cropped_cells_{0:03d}".format(t, ),
+                           self.cropped_cells, axis=1)
+        np.save(location + "number_cropped_cells_{0:03d}.npy".format(t, ),
+                self.number_cropped_cells)
+        np.save(location + "abnd_sown_{0:03d}.npy".format(t, ),
+                np.array((abandoned, sown)))
+        np.save(location + "crop_yield_{0:03d}.npy".format(t, ),
+                self.crop_yield)
+        np.save(location + "eco_benefit_pc_{0:03d}.npy".format(t, ),
+                self.eco_benefit)
+        np.save(location + "real_income_pc_{0:03d}.npy".format(t, ),
+                self.real_income_pc)
+        np.save(location + "population_{0:03d}.npy".format(t, ),
+                self.population)
+        np.save(location + "out_mig_{0:03d}.npy".format(t, ),
+                self.out_mig)
+        np.save(location + "death_rate_{0:03d}.npy".format(t, ),
+                self.death_rate)
+        np.save(location + "soil_deg_{0:03d}.npy".format(t, ),
+                self.soil_deg)
 
-        save_stacked_array(location + "cells_in_influence_{0:03d}".format(t, ), self.cells_in_influence, axis=1)
-        np.save(location + "number_cells_in_influence_{0:03d}.npy".format(t, ), self.number_cells_in_influence)
-        save_stacked_array(location + "cropped_cells_{0:03d}".format(t, ), self.cropped_cells, axis=1)
-        np.save(location + "number_cropped_cells_{0:03d}.npy".format(t, ), self.number_cropped_cells)
-        np.save(location + "abnd_sown_{0:03d}.npy".format(t, ), np.array((abandoned, sown)))
-        np.save(location + "crop_yield_{0:03d}.npy".format(t, ), self.crop_yield)
-        np.save(location + "eco_benefit_pc_{0:03d}.npy".format(t, ), self.eco_benefit)
-        np.save(location + "real_income_pc_{0:03d}.npy".format(t, ), self.real_income_pc)
-        np.save(location + "population_{0:03d}.npy".format(t, ), self.population)
-        np.save(location + "out_mig_{0:03d}.npy".format(t, ), self.out_mig)
-        np.save(location + "death_rate_{0:03d}.npy".format(t, ), self.death_rate)
-        np.save(location + "soil_deg_{0:03d}.npy".format(t, ), self.soil_deg)
+        np.save(location + "pop_gradient_{0:03d}.npy".format(t, ),
+                self.pop_gradient)
+        np.save(location + "adjacency_{0:03d}.npy".format(t, ),
+                self.adjacency)
+        np.save(location + "degree_{0:03d}.npy".format(t, ),
+                self.degree)
+        np.save(location + "comp_size_{0:03d}.npy".format(t, ),
+                self.comp_size)
+        np.save(location + "centrality_{0:03d}.npy".format(t, ),
+                self.centrality)
+        np.save(location + "trade_income_{0:03d}.npy".format(t, ),
+                self.trade_income)
 
-        np.save(location + "pop_gradient_{0:03d}.npy".format(t, ), self.pop_gradient)
-        np.save(location + "adjacency_{0:03d}.npy".format(t, ), self.adjacency)
-        np.save(location + "degree_{0:03d}.npy".format(t, ), self.degree)
-        np.save(location + "comp_size_{0:03d}.npy".format(t, ), self.comp_size)
-        np.save(location + "centrality_{0:03d}.npy".format(t, ), self.centrality)
-        np.save(location + "trade_income_{0:03d}.npy".format(t, ), self.trade_income)
-
-        np.save(location + "number_settlements_{0:03d}.npy".format(t, ), self.number_settlements)
-        np.save(location + "settlement_positions_{0:03d}.npy".format(t, ), self.settlement_positions)
+        np.save(location + "number_settlements_{0:03d}.npy".format(t, ),
+                self.number_settlements)
+        np.save(location + "settlement_positions_{0:03d}.npy".format(t, ),
+                self.settlement_positions)
 
     def init_trajectory_output(self):
         self.trajectory.append(['time',
@@ -1067,7 +1089,7 @@ class Model(Parameters):
                                 'max_soil_deg',
                                 'max_pop_grad'])
 
-    def save_trajectory_output(self, time, args):
+    def update_trajectory_output(self, time, args):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
@@ -1076,8 +1098,10 @@ class Model(Parameters):
         income_agriculture = sum(self.crop_yield)
         income_ecosystem = sum(self.eco_benefit)
         income_trade = sum(self.trade_income)
-        number_of_components = float(sum([1 if value>0 else 0 for value in self.comp_size]))
-        mean_cluster_size = float(sum(self.comp_size))/number_of_components if number_of_components > 0 else 0
+        number_of_components = float(sum([1 if value>0 else 0
+                                          for value in self.comp_size]))
+        mean_cluster_size = float(sum(self.comp_size))/number_of_components \
+            if number_of_components > 0 else 0
 
         self.trajectory.append([time,
                                 total_population,
@@ -1092,11 +1116,15 @@ class Model(Parameters):
                                 np.nanmax(args[1]),
                                 np.nanmax(args[2]),
                                 np.nanmax(args[3]),
+                                np.nanmax(args[4]),
                                 np.nanmax(self.soil_deg),
                                 np.nanmax(self.pop_gradient)])
 
+    def _get_trajectory_output(self):
+        return self.trajectory
+
 if __name__ == "__main__":
-    import pandas
+
     N = 50
 
     # initialize Model
@@ -1113,9 +1141,10 @@ if __name__ == "__main__":
 
     # run Model
     timesteps = 500
-    model.crop_income_mode='mean'
+    model.crop_income_mode='sum'
     model.output_level = 'trajectory'
     model.population_control = 'False'
     model.run(timesteps, location, interactive_output=True)
 
-
+    with open(location, 'wb') as dumpfile:
+        pickle.dump(model._get_trajectory_output(), dumpfile)

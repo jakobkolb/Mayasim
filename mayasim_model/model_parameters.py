@@ -69,6 +69,9 @@ class Parameters(object):
     min_people_per_cropped_cell = 40.
     max_people_per_cropped_cell = 125.
 
+    # KILL CITIES WITHOUT POPULATION ONLY OR ALSO WITHOUT CROPS
+    kill_cities_without_crops = False
+
     # PARAMETERS FOR SOIL DEGRADATION:
     deg_rate = 5.0  # 5.0 - degradation rate for cropped cells
     reg_rate = 2.5  # 2.5 - regeneration rate for state 3 forest cells
@@ -84,14 +87,14 @@ class Parameters(object):
 
     # crop_income specifies the way, crop income is calculated.
     # possible: 'mean' or 'sum'. Default is 'mean'.
-    crop_income_mode = 'mean'
-    eco_income_mode = 'mean'
+    crop_income_mode = 'sum'
+    eco_income_mode = 'sum'
 
     # WEIGHTS FOR INCOME CALCULATION
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
-    r_bca_sum = 0.16  # 0.16- weight agriculture income for sum calculation
+    r_bca_sum = 0.25  # 0.16- weight agriculture income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
-    r_es_sum = 2.     # 2.  - weight ecosystem services for sum calculation
+    r_es_sum = .0002     # 2.  - weight ecosystem services for sum calculation
     r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS
@@ -112,6 +115,9 @@ class Parameters(object):
     # MIGRATION PREFERENCE PARAMETERS
     mig_TC_pref = -0.1
     mig_ES_pref =  0.3
+
+    min_mig_rate = 0.
+    max_mig_rate = 0.15
 
     # POPULATION THRESHOLDS FOR TRADER RANKS
     thresh_rank_1 = 4000
