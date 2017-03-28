@@ -24,8 +24,17 @@ import pandas as pd
 from mayasim_model.model import Model
 from mayasim_model.model_parameters import Parameters
 from pymofa import experiment_handling as eh
-from visuals.custom_visuals import Visuals
+from visuals.custom_visuals import SnapshotVisuals as Visuals
 
+def progress(count, total, suffix=''):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '#' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stdout.write('[%s] %s%s ...%s\r' % (bar, percents, '%', suffix))
+    sys.stdout.flush()  # As suggested by Rom Ruben
 
 # Experiment with ecosystem benefits calculated as sum over cells in influence
 def RUN_FUNC(r_eco, r_agg, mode, N, t_max, filename):
@@ -95,17 +104,21 @@ def resaving(handle):
     def make_video(filename):
 
         init_data = np.load(filename[0] + '/init_frame.pkl')
+        init_data['location'] = SAVE_PATH_RAW
         vis = Visuals(**init_data)
 
         filenames = np.sort(glob.glob(filename[0] + '/frame*'))
         writer = imageio.get_writer(filename[0] + '/run.mp4', fps=10)
-        for f in filenames:
+
+        for i, f in enumerate(filenames):
             fig = vis.update_plots(**np.load(f))
+            fig.set_size_inches([944 / fig.dpi, 672 / fig.dpi])
             fig.canvas.draw()
             data = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8,
                                  sep='')
             data = data.reshape(fig.canvas.get_width_height()[::-1] + (3,))
             writer.append_data(data)
+            progress(i, len(filenames))
         writer.close()
 
         return open(filename[0] + '/run.mp4').read()
@@ -116,9 +129,9 @@ def resaving(handle):
     EVA2 = {"trajectory":
                lambda fnames: pd.concat([np.load(f + '/trajectory.pkl')
                                          for f in fnames])}
-
-    handle.resave(EVA1, NAME1)
     handle.resave(EVA2, NAME2)
+    handle.resave(EVA1, NAME1)
+
 
 
 
@@ -133,6 +146,9 @@ elif getpass.getuser() == "jakob":
 else:
     SAVE_PATH_RAW = "./RAW"
     SAVE_PATH_RES = "./RES"
+
+print(SAVE_PATH_RAW)
+print(SAVE_PATH_RES)
 
 # get parameters from command line and set sub experiment
 # and testing mode accordingly
@@ -193,7 +209,7 @@ if sub_experiment in [0, 1]:
                                     INDEX, SAVE_PATH_RAW,
                                     SAVE_PATH_RES)
 
-    handle.compute(RUN_FUNC)
+    #handle.compute(RUN_FUNC)
     resaving(handle)
 
 
@@ -210,7 +226,6 @@ elif sub_experiment == 2:
             data_found = True
         except IOError:
             print(loc + ' does not exist')
-        print data_found
         if data_found:
             names = data.index.names
             values = data.index.values

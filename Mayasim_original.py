@@ -1,8 +1,11 @@
-import datetime
-import matplotlib.pyplot as plot
+
+
 import numpy as np
-import os
+import matplotlib.pyplot as plot
+# from copy import deepcopy
 import scipy.ndimage as ndimage
+import os
+import datetime
 
 debug = False
 
@@ -228,10 +231,9 @@ class Settlements:
         self.birth_rate =  np.empty(number_settlements_In)
         self.birth_rate.fill(0.15)
         self.death_rate =  0.1 + 0.05 * np.random.random(number_settlements_In)
-        self.population =  np.random.randint(1000,2000,number_settlements_In,
-                dtype='float64')
+        self.population =  np.random.randint(1000,2000,number_settlements_In)
         self.mig_rate =  np.zeros((number_settlements_In))
-        self.out_mig = np.zeros((number_settlements_In)).astype('float64')
+        self.out_mig = np.zeros((number_settlements_In)).astype('int')
         self.pioneer_set = []
         self.failed = 0
         
@@ -370,7 +372,7 @@ class Settlements:
         max_death_rate = 0.25
         death_rate_diffe = max_death_rate - min_death_rate
         
-        self.death_rate = -death_rate_diffe * self.real_inc64ome_pc + max_death_rate
+        self.death_rate = -death_rate_diffe * self.real_income_pc + max_death_rate
         self.death_rate[self.death_rate<min_death_rate] = min_death_rate
         self.death_rate[self.death_rate>max_death_rate] = max_death_rate
         
@@ -381,12 +383,12 @@ class Settlements:
             min_birth_rate = -0.2
             shift = 0.325
             self.birth_rate[self.population>=5000] = -(max_birth_rate - min_birth_rate)/10000. * self.population[self.population>=5000] + shift
-        
-        print [type(pop) for pop in self.population]
-        #self.population += (self.birth_rate - self.death_rate)*self.population
+            
+        self.population += (self.birth_rate - self.death_rate)*self.population
         self.failed += np.sum(self.population<=0)
         self.population[self.population<=0] = 0
-
+        
+        ### TODO: connect with other model functions
         estab_cost = 900
         self.population[self.population<estab_cost*0.4] = 0
         min_mig_rate = 0.

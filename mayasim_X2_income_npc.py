@@ -1,94 +1,66 @@
-import getpass
+
 import os
-import shutil
+import datetime
 import sys
+import getpass
+import shutil
 from subprocess import call
 
-from visuals.moviefy import moviefy
-
 if getpass.getuser() == "kolb":
-    SAVE_PATH_RAW = "/p/tmp/kolb/Mayasim/output_data/X2"
-    SAVE_PATH_RES = "/home/kolb/Mayasim/output_data/X2"
+    SAVE_PATH = "/home/kolb/Mayasim/output_data/X1"
 elif getpass.getuser() == "jakob":
-    SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X2"
-    SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X2"
-else:
-    SAVE_PATH_RAW = "./RAW"
-    SAVE_PATH_RES = "./RES"
+    SAVE_PATH = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X1"
 
-if len(sys.argv) > 1:
+if len(sys.argv)>1:
     sub_experiment = int(sys.argv[1])
 else:
     sub_experiment = 0
 
-# Default experiment with standard Parameters:
+# Default experiment with standard parameters:
 if sub_experiment == 0:
-    from mayasim_model.model import Model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
+    save_location = SAVE_PATH + '_0_npc'
+    
+    if os.path.exists(save_location):
+        shutil.rmtree(save_location)
+    os.makedirs(save_location)
+    save_location += "/"
 
-    save_location_RAW = SAVE_PATH_RAW + '_0_npc'
-    save_location_RES = SAVE_PATH_RES + '_0_npc_plots'
-
-    if os.path.exists(save_location_RAW):
-        shutil.rmtree(save_location_RAW)
-    os.makedirs(save_location_RAW)
-    save_location_RAW += "/"
-    if os.path.exists(save_location_RES):
-        shutil.rmtree(save_location_RES)
-    os.makedirs(save_location_RES)
-    save_location_RES += "/"
-
-    m = Model(N)
+    m = model(N)
     m.population_control = False
-    m.run(t_max, save_location_RAW)
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, repr(t_max)])
+    m.run(t_max, save_location)
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
 # Experiment with crop income that is calculated as the
 # sum over all cropped cells
 if sub_experiment == 1:
-    from mayasim_model.model import Model
+    from mayasim_model.model import model
 
     N = 30
     t_max = 325
+    save_location = SAVE_PATH + '_1_npc'
 
-    save_location_RAW = SAVE_PATH_RAW + '_1_npc'
-    save_location_RES = SAVE_PATH_RES + '_1_npc_plots'
+    if os.path.exists(save_location):
+        shutil.rmtree(save_location)
+    os.makedirs(save_location)
+    save_location += "/"
 
-    if os.path.exists(save_location_RAW):
-        shutil.rmtree(save_location_RAW)
-    os.makedirs(save_location_RAW)
-    save_location_RAW += "/"
-    if os.path.exists(save_location_RES):
-        shutil.rmtree(save_location_RES)
-    os.makedirs(save_location_RES)
-    save_location_RES += "/"
-
-    m = Model(N)
+    m = model(N)
     m.crop_income_mode = "sum"
     m.population_control = False
-    m.run(t_max, save_location_RAW)
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, repr(t_max)])
+    m.run(t_max, save_location)
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])
 
-# plot results for both sub experiments
+#plot results for both sub experiments
 if sub_experiment == 2:
 
     t_max = 325
 
-    for x in [0, 1]:
-        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots'.format(x) + "/"
-        moviefy(save_location_RES)
+    save_location = SAVE_PATH + '_0_npc/'
+    call(["python", "/visuals/mayasim_visuals.py", save_location, `t_max`])
 
-# plot results for both sub experiments
-if sub_experiment == 3:
-    N = 30
-    t_max = 325
-
-    for x in [0, 1]:
-        save_location_RES = SAVE_PATH_RES + '_{:d}_npc_plots/'.format(x)
-        save_location_RAW = SAVE_PATH_RAW + '_{:d}_npc/'.format(x)
-        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              save_location_RES, repr(t_max)])
+    save_location = SAVE_PATH + '_1_npc/'
+    call(["python", "visuals/mayasim_visuals.py", save_location, `t_max`])

@@ -4,7 +4,7 @@ import numpy as np
 import os
 
 
-class Visuals(object):
+class SnapshotVisuals(object):
     """
     Class containing routines to save system snapshots in terms of images.
     """
@@ -31,7 +31,6 @@ class Visuals(object):
         self.location = location.rstrip('/')
         if not os.path.isdir(self.location):
             os.makedirs(self.location)
-        print(self.location)
 
         # image/frame counter for naming
         self.i_image = 0
@@ -129,7 +128,10 @@ class Visuals(object):
         # plot settlements with color acccording to trade income
         cmap = mpl.cm.Blues
         t_max = max(trade_income)
-        colors = [cmap(t / t_max) for t in trade_income]
+        if t_max > 0:
+            colors = [cmap(t / t_max) for t in trade_income]
+        else:
+            colors = ['w' for t in trade_income]
         try:
             ax.scatter(y, x, c=colors, zorder=2)
         except ValueError:
@@ -148,3 +150,28 @@ class Visuals(object):
             ax.set_ylim([self.shape[0], 0])
 
         return self.figure
+
+class TrajectoryVisuals(object):
+
+    def __init__(self, location):
+        """
+        Initialize the Visual class for trajectory data.
+        """
+
+        tmp = np.load(location)
+        statistics = tmp.columns.values
+        self.trajectories = {stat: tmp[[stat]].unstack('observables')
+                             for stat in statistics}
+        for trj in self.trajectories.values():
+            trj.columns = trj.columns.droplevel()
+            print trj.columns
+        self.run_indices = zip(*[i.tolist() for i in tmp.index.levels[:2]])
+
+    def plot_trajectories(self, observables=[]):
+
+        for obs in observables:
+            for key in self.trajectories.keys():
+                if key == 'mean':
+                    self.trajectories[key][[obs]].unstack(level=(0,1)).plot(legend=False)
+                    plt.show()
+
