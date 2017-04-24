@@ -61,7 +61,7 @@ class parameters():
     #WEIGHTS FOR BENEFIT COST ASSESSMENT TO CROP NEW CELL
     max_yield = 1100
     origin_shift = 1.11
-    slope_yield = -0.0052
+    slope_yield = 0.0052
 
     #PARAMETERS FOR CROPPING CELLS
     estab_cost = 900

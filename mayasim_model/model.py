@@ -316,7 +316,7 @@ class model(parameters):
 
     def benefit_cost(self, ag_In):
         ### Benefit cost assessment
-        return (self.max_yield*(1-self.origin_shift*np.exp(self.slope_yield*ag_In)))
+        return (self.max_yield*(1-self.origin_shift*np.exp(-self.slope_yield*ag_In)))
 
     def get_cells_in_influence(self):
         ### creates a list of cells for each city that are under its influence.
@@ -393,7 +393,6 @@ class model(parameters):
             ut_negative = utility[self.cropped_cells[city][0],self.cropped_cells[city][1]]<=0
             if ( np.sum(ut_negative) > 0):
                 abandon_ind = np.where(ut_negative)[0]
-                #coor = self.cropped_cells[city][:][abandon_ind]
                 coor = [[self.cropped_cells[city][0][ind_x] for ind_x in abandon_ind],[self.cropped_cells[city][1][ind_y] for ind_y in abandon_ind]]
                 self.cropped_cells[city] = np.delete(self.cropped_cells[city],abandon_ind,1)
                 self.occupied_cells[coor[0],coor[1]] = 0
