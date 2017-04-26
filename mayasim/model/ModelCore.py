@@ -12,21 +12,34 @@ import scipy.ndimage as ndimage
 import scipy.sparse as sparse
 from itertools import compress
 import pandas
+import pkg_resources
 
-from f90routines import f90routines
-from model_parameters import Parameters
+from .f90routines import f90routines
+from .ModelParameters import ModelParameters as Parameters
 
+import traceback
+import warnings
+import sys
 
-class Model(Parameters):
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+
+    log = file if hasattr(file, 'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
+
+warnings.showwarning = warn_with_traceback
+
+class ModelCore(Parameters):
 
     def __init__(self, n=30, interactive_output=False,
-                 input_data_location="./input_data/",
-                 output_data_location='./'):
+                 output_data_location='./', debug=False):
+
+        input_data_location = pkg_resources.resource_filename('mayasim', 'input_data/')
 
         self.interactive_output = interactive_output
         self.output_data_location = output_data_location
 
-        self.debug = False
+        self.debug = debug
 
         # *******************************************************************
         # MODEL PARAMETERS (to be varied)
@@ -64,12 +77,13 @@ class Model(Parameters):
         # on the formula: 0.9 * VS + 0.6 * S + 0.3 * MS + 0 * NS.
         # Values range from 0 (bad) to 6 (good)
         self.soilprod = np.load(input_data_location + '0_RES_432x400_soil.npy')
-        # NETLOGO version sets soilprod > 6 to 1.5. 
-        # would make more sense to cap it though..
-        # self.soilprod[self.soilprod>6] = 6
-        self.soilprod[self.soilprod > 6] = 1.5
         # it also sets soil productivity to 1.5 where the elevation is <= 1
-        self.soilprod[self.elev <= 1] = 1.5
+        # self.soilprod[self.elev <= 1] = 1.5 complains because there is nans in elev
+        for ind, x in np.ndenumerate(self.elev):
+            if not np.isnan(x):
+                if x <= 1.:
+                    self.soilprod[ind] = 1.5
+
         # smoothen soil productivity dataset
         self.soilprod = ndimage.gaussian_filter(self.soilprod,
                                                 sigma=(2, 2), order=0)
@@ -277,48 +291,50 @@ class Model(Parameters):
         # Iterate over all cells repeatedly and regenerate or degenerate
         for repeat in range(4):
             for i in self.list_of_land_patches:
-                # Forest regenerates faster [slower] (linearly),
-                # if net primary productivity on the patch
-                # is above [below] average.
-                threshold = npp_mean/npp[i]
-                # Degradation:
-                # Decrement with probability 0.003
-                # if there is a settlement around,
-                # degrade with higher probability
-                probdec = self.natprobdec * (2*self.pop_gradient[i] + 1)
-                if np.random.random() <= probdec:
-                    if self.forest_state[i] == 3:
+                if not np.isnan(self.elev[i]):
+                    # Forest regenerates faster [slower] (linearly),
+                    # if net primary productivity on the patch
+                    # is above [below] average.
+                    threshold = npp_mean/npp[i]
+                    # Degradation:
+                    # Decrement with probability 0.003
+                    # if there is a settlement around,
+                    # degrade with higher probability
+                    probdec = self.natprobdec * (2*self.pop_gradient[i] + 1)
+                    if np.random.random() <= probdec:
+                        if self.forest_state[i] == 3:
+                            self.forest_state[i] = 2
+                            self.forest_memory[i] = self.state_change_s2
+                        elif self.forest_state[i] == 2:
+                            self.forest_state[i] = 1
+                            self.forest_memory[i] = 0
+
+                    # Regeneration:"
+                    # recover if tree = 1 and memory > threshold 1
+                    if (self.forest_state[i] == 1
+                            and self.forest_memory[i]
+                            > self.state_change_s2*threshold):
                         self.forest_state[i] = 2
                         self.forest_memory[i] = self.state_change_s2
-                    elif self.forest_state[i] == 2:
-                        self.forest_state[i] = 1
-                        self.forest_memory[i] = 0
+                    # recover if tree = 2 and memory > threshold 2
+                    # and certain number of neighbours are climax forest as well
+                    if (self.forest_state[i] == 2
+                            and self.forest_memory[i]
+                            > self.state_change_s3*threshold):
+                        state_3_neighbours =\
+                                np.sum(self.forest_state[i[0]-1:i[0]+2,
+                                                         i[1]-1:i[1]+2] == 3)
+                        if state_3_neighbours > self.min_number_of_s3_neighbours:
+                            self.forest_state[i] = 3
 
-                # Regeneration:"
-                # recover if tree = 1 and memory > threshold 1
-                if (self.forest_state[i] == 1
-                        and self.forest_memory[i]
-                        > self.state_change_s2*threshold):
-                    self.forest_state[i] = 2
-                    self.forest_memory[i] = self.state_change_s2
-                # recover if tree = 2 and memory > threshold 2
-                # and certain number of neighbours are climax forest as well
-                if (self.forest_state[i] == 2
-                        and self.forest_memory[i]
-                        > self.state_change_s3*threshold):
-                    state_3_neighbours =\
-                            np.sum(self.forest_state[i[0]-1:i[0]+2,
-                                                     i[1]-1:i[1]+2] == 3)
-                    if state_3_neighbours > self.min_number_of_s3_neighbours:
-                        self.forest_state[i] = 3
-
-                # finally, increase memory by one
-                self.forest_memory[i] += 1
+                    # finally, increase memory by one
+                    self.forest_memory[i] += 1
         # calculate cleared land neighbours for output:
-        for i in self.list_of_land_patches:
-            self.cleared_land_neighbours[i] =\
-                    np.sum(self.forest_state[i[0]-1:i[0]+2,
-                                             i[1]-1:i[1]+2] == 1)
+        if self.veg_rainfall > 0:
+            for i in self.list_of_land_patches:
+                self.cleared_land_neighbours[i] =\
+                        np.sum(self.forest_state[i[0]-1:i[0]+2,
+                                                 i[1]-1:i[1]+2] == 1)
 
         return
 
@@ -421,10 +437,12 @@ class Model(Parameters):
         # agricultural population density (people per cropped land)
         # determines the number of cells that can be cropped.
         ag_pop_density = [p/(
-                self.number_cropped_cells[c] * self.area) for c, p in enumerate(self.population)]
+                self.number_cropped_cells[c] * self.area)
+                          if self.number_cropped_cells[c] > 0 else 0.
+                          for c, p in enumerate(self.population)]
         # occupied_cells is a mask of all occupied cells calculated as the
         # unification of the cropped cells of all settlements.
-        occup = np.concatenate(self.cropped_cells, axis=1)
+        occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
         for index in range(len(occup[0])):
             self.occupied_cells[occup[0, index], occup[1, index]] = 1
         # the age of settlements is increased here.
@@ -434,8 +452,8 @@ class Model(Parameters):
         # are only done in 40 km radius.
         for city in self.populated_cities:
 
-            cells = zip(self.cells_in_influence[city][0],
-                        self.cells_in_influence[city][1])
+            cells = list(zip(self.cells_in_influence[city][0],
+                             self.cells_in_influence[city][1]))
 # EQUATION ########################################################
             utility = [bca[x, y] - self.estab_cost
                        - (self.ag_travel_cost * np.sqrt(
@@ -451,8 +469,8 @@ class Model(Parameters):
             # jointly sort utilities, availability and cells such that cells
             # with highest utility are first.
             sorted_utility, sorted_available, sorted_cells = \
-                zip(*sorted(list(zip(utility, available, cells)),
-                            reverse=True))
+                list(zip(*sorted(list(zip(utility, available, cells)),
+                            reverse=True)))
             # of these sorted lists, sort filter only available cells
             available_util = list(compress(list(sorted_utility),
                                            list(sorted_available)))
@@ -637,8 +655,7 @@ class Model(Parameters):
                                         + (self.settlement_positions[1][city]
                                            - self.settlement_positions[1])**2
                                         )))
-                # don't choose yourself as nearest neighbor
-                distances[city] = np.nan
+
                 if self.rank[city] == 3:
                     treshold = 31. * (self.thresh_rank_3 / self.thresh_rank_3 *
                                       0.5 + 1.)
@@ -650,7 +667,13 @@ class Model(Parameters):
                                       0.5 + 1.)
                 else:
                     treshold = 0
+
+                # don't chose yourself as neares neighbor
+                distances[city] = 2 * treshold
+
+                # collect close enough neighbors
                 nearby = (distances <= treshold)
+
                 # if there are traders nearby,
                 # connect to the one with highest population
                 if sum(nearby) != 0:
@@ -805,7 +828,7 @@ class Model(Parameters):
                     self.spawn_city(new_loc[0], new_loc[1], mig_pop)
                     index = (vacant_lands[0, :] == new_loc[0])\
                         & (vacant_lands[1, :] == new_loc[1])
-                    np.delete(vacant_lands, index, 1)
+                    np.delete(vacant_lands, int(np.where(index)[0]), 1)
 
     def kill_cities(self):
 

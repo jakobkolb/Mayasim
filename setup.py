@@ -17,10 +17,11 @@ setup(name="mayasim",
       author_email="kolb@pik-potsdam.de",
       license="MIT",
       packages=["mayasim"],
+      include_package_data=True,
       install_requires=[
             "numpy>=1.11.0",
             "pymofa>=0.1.0",
       ],
       # see http://stackoverflow.com/questions/15869473/what-is-the-advantage-
       # of-setting-zip-safe-to-true-when-packaging-a-python-projec
-      zip_safe=False )
+      zip_safe=False)

@@ -1,6 +1,6 @@
 import numpy as np
 
-class Parameters(object):
+class ModelParameters(object):
 
     # *******************************************************************
     # RUN PARAMETERS:

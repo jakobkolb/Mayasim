@@ -9,8 +9,8 @@ import numpy as np
 import sys
 import pandas as pd
 
-from pymofa import experiment_handling as eh
-import mayasim.model as Model
+from pymofa.experiment_handling import experiment_handling as eh
+from mayasim.model.ModelCore import ModelCore as Model
 
 
 def RUN_FUNC(r_bca=0.2, r_eco=0.0002, population_control=False,
@@ -128,8 +128,11 @@ NAME = "mayasim_ensemble_testing"
 
 SAMPLE_SIZE = 10 if not test else 2
 
-handle = eh(sample_size=SAMPLE_SIZE, parameter_combinations=PARAM_COMBS,
-            index=INDEX, path_raw=SAVE_PATH_RAW, path_res=SAVE_PATH_RES,
+handle = eh(sample_size=SAMPLE_SIZE,
+            parameter_combinations=PARAM_COMBS,
+            index=INDEX,
+            path_raw=SAVE_PATH_RAW,
+            path_res=SAVE_PATH_RES,
             use_kwargs=True)
 
 handle.compute(run_func=RUN_FUNC)

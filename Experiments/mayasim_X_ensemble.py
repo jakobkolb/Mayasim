@@ -1,6 +1,9 @@
 from __future__ import print_function
 
-import cPickle as cp
+try:
+    import cPickle as cP
+except ImportError:
+    import pickle as cP
 import getpass
 import itertools as it
 import numpy as np
@@ -8,13 +11,16 @@ import sys
 from subprocess import call
 
 import pandas as pd
-from Python.pymofa import experiment_handling as eh
 
-from Python.MayaSim.model import Parameters
-from Python.MayaSim.model import model
+from pymofa.experiment_handling import experiment_handling as handle
+from mayasim.model.ModelCore import ModelCore as Model
+from mayasim.model.ModelParameters import ModelParameters as Parameters
+
+global test
 
 
-def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
+def run_func(r_bca=0.25, population_control=False, n=30,
+             rf_crop_income_mode='sum', rf_steps=350, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -41,9 +47,9 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
 
     # initialize the Model
 
-    m = model(N)
-    m.population_control = True
-    m.crop_income_mode = crop_income_mode
+    m = Model(n, output_data_location=filename, debug=test)
+    m.population_control = population_control
+    m.crop_income_mode = rf_crop_income_mode
     m.r_bca = r_bca
     m.output_level = 'trajectory'
 
@@ -63,8 +69,9 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
                                    and not callable(key)})
 
     # run Model
-
-    m.run(steps, filename)
+    if test:
+        rf_steps = 5
+    m.run(rf_steps)
 
     # retrieve results
 
@@ -73,7 +80,7 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
     res["trajectory"] = pd.DataFrame(trajectory, columns=headers)
 
     with open(filename, 'wb') as dumpfile:
-        cp.dump(res, dumpfile)
+        cP.dump(res, dumpfile)
     try:
         tmp = np.load(filename)
     except IOError:
@@ -81,96 +88,78 @@ def RUN_FUNC(r_bca, population_control, N, crop_income_mode, steps, filename):
     return 0
 
 
-def compute(SAVE_PATH_RAW):
-
-    eh.compute(RUN_FUNC, PARAM_COMBS, SAMPLE_SIZE, SAVE_PATH_RAW)
-
-
-def resave(SAVE_PATH_RAW, SAVE_PATH_RES, sample_size=None):
-    """
-    dictionary of lambda functions to calculate the
-    average and errors for the trajectories from all
-    runs given in the list of file names (fnames)
-    that is handled internally by resave_data.
-
-    Parameters:
-    -----------
-    SAVE_PATH_RAW : string
-        path to the raw output from runs
-    SAVE_PATH_RES : string
-        path to save the results to
-    sample_size : int
-        the number of runs computed for one
-        combination of parameer e.g. the size
-        of the ensemble for statistical analysis
-    """
-    EVA = {"<mean_trajectories>":
-           lambda fnames: pd.concat([np.load(f)["trajectory"]
-                                     for f in fnames]).groupby(level=0).mean(),
-           "<sigma_trajectories>":
-           lambda fnames: pd.concat([np.load(f)["trajectory"]
-                                     for f in fnames]).groupby(level=0).std()
-           }
-
-    eh.resave_data(SAVE_PATH_RAW,
-                   PARAM_COMBS,
-                   INDEX,
-                   EVA,
-                   NAME,
-                   sample_size,
-                   save_path=SAVE_PATH_RES)
-
 
 # get subexperiment from comand line
 if len(sys.argv) > 1:
-    sub_experiment = int(sys.argv[1])
+    test = int(sys.argv[1])
 else:
-    sub_experiment = 0
+    test = 1
+
+test_folder = ['', 'test_output/'][test]
 
 if getpass.getuser() == "kolb":
-    SAVE_PATH_RAW = "/p/tmp/kolb/Mayasim/output_data/X_ensemble"
-    SAVE_PATH_RES = "/home/kolb/Mayasim/output_data/X_ensemble"
+    save_path_raw = "/p/tmp/kolb/Mayasim/output_data/{}X_ensemble".format(test_folder)
+    save_path_res = "/home/kolb/Mayasim/output_data/{}X_ensemble".format(test_folder)
 elif getpass.getuser() == "jakob":
-    SAVE_PATH = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X_ensemble/"
+    save_path_raw = "/home/jakob/Project_MayaSim/output_data/{}X_ensemble/".format(test_folder)
+    save_path_res = save_path_raw
 
-if sub_experiment == 0:
+estimators = {"<mean_trajectories>":
+                  lambda fnames: pd.concat([np.load(f)["trajectory"]
+                                            for f in fnames]).groupby(level=0).mean(),
+              "<sigma_trajectories>":
+                  lambda fnames: pd.concat([np.load(f)["trajectory"]
+                                            for f in fnames]).groupby(level=0).std()
+              }
 
-    SAVE_PATH_RAW = SAVE_PATH_RAW + "raw_data/"
-    SAVE_PATH_RES = SAVE_PATH_RES + "results/"
+
+if test == 0:
+
+    save_path_raw = save_path_raw + "raw_data/"
+    save_path_res = save_path_res + "results/"
 
     N, crop_income_mode, steps = [30], ['sum'], [350]
 
     r_bcas = [0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2]
     pcs = [True, False]
 
-    PARAM_COMBS = list(it.product(r_bcas, pcs, N, crop_income_mode, steps))
+    parameter_combinations = list(it.product(r_bcas, pcs, N, crop_income_mode, steps))
 
-    NAME = "mayasim_ensemble_testing"
-    INDEX = {0: "r_bca", 1: "population_control"}
-    SAMPLE_SIZE = 10
+    name = "mayasim_ensemble_testing"
+    index = {0: "r_bca", 1: "population_control"}
+    sample_size = 10
 
-    compute(SAVE_PATH_RAW)
-    resave(SAVE_PATH_RAW, SAVE_PATH_RES, SAMPLE_SIZE)
-    call(["python", "visuals/mayasim_visuals.py", SAVE_PATH_RAW,
-          SAVE_PATH_RES, `steps[0]`])
+    h = handle(sample_size=sample_size,
+               parameter_combinations=parameter_combinations,
+               index=index,
+               path_raw=save_path_raw,
+               path_res=save_path_res)
+    h.compute(run_func=run_func)
+    h.resave(eva=estimators, name=name)
+    call(["python", "visuals/mayasim_visuals.py", save_path_raw,
+          save_path_res, repr(steps[0])])
 
 
-if sub_experiment == 1:
+if test == 1:
 
-    SAVE_PATH_RAW = SAVE_PATH_RAW + "raw_data/"
-    SAVE_PATH_RES = SAVE_PATH_RES + "results/"
+    save_path_raw = save_path_raw + "raw_data/"
+    save_path_res = save_path_res + "results/"
 
-    N, crop_income_mode, steps = [30], ['sum'], [3]
+    N, crop_income_mode, steps = [300], ['sum'], [10]
 
-    r_bcas = [0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2]
+    r_bcas = [0.08, 0.14, 0.2]
     pcs = [True, False]
 
-    PARAM_COMBS = list(it.product(r_bcas, pcs, N, crop_income_mode, steps))
+    parameter_combinations = list(it.product(r_bcas, pcs, [test]))
 
-    NAME = "mayasim_ensemble_testing"
-    INDEX = {0: "r_bca", 1: "population_control"}
-    SAMPLE_SIZE = 3
+    name = "mayasim_ensemble_testing"
+    index = {0: "r_bca", 1: "population_control"}
+    sample_size = 2
 
-    resave(SAVE_PATH_RAW, SAVE_PATH_RES, SAMPLE_SIZE)
-    call(["python", "visuals/mayasim_visuals.py", SAVE_PATH_RAW,
-          SAVE_PATH_RES, `steps[0]`])
+    h = handle(sample_size=sample_size,
+               parameter_combinations=parameter_combinations,
+               index=index,
+               path_raw=save_path_raw,
+               path_res=save_path_res)
+    h.compute(run_func=run_func)
+    h.resave(eva=estimators, name=name)
