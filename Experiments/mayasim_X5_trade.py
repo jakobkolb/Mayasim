@@ -1,96 +1,144 @@
+"""
+I want to know, if for increasing trade income, there is a transition to a
+complex society that can sustain itself.
+And I want to know, what happens at that transition. Does it shift, due to
+climate variability? Hypothesis: Yes, it does.
+
+Therefore, vary two parameters: r_trade and precipitation_amplitude
+"""
+
+from __future__ import print_function
+
 import getpass
-import os
-import shutil
+import itertools as it
+import numpy as np
 import sys
-from subprocess import call
 
-from Python.MayaSim.visuals import moviefy
+import pandas as pd
+try:
+    import cPickle as cP
+except ImportError:
+    import pickle as cP
 
-if getpass.getuser() == "kolb":
-    SAVE_PATH_RAW = "/p/tmp/kolb/Mayasim/output_data/X4"
-    SAVE_PATH_RES = "/home/kolb/Mayasim/output_data/X4"
-elif getpass.getuser() == "jakob":
-    SAVE_PATH_RAW = "/home/jakob/PhD/Project_MayaSim/Python/output_data/raw/X4"
-    SAVE_PATH_RES = "/home/jakob/PhD/Project_MayaSim/Python/output_data/X4"
-else:
-    SAVE_PATH_RAW = "./RAW"
-    SAVE_PATH_RES = "./RES"
+from pymofa.experiment_handling import experiment_handling as handle
+from mayasim.model.ModelCore import ModelCore as Model
+from mayasim.model.ModelParameters import ModelParameters as Parameters
 
-if len(sys.argv) > 1:
-    sub_experiment = int(sys.argv[1])
-else:
-    sub_experiment = 0
+test = True
 
-# Default experiment with standard Parameters:
-if sub_experiment == 0:
-    from Python.MayaSim.model import Model
 
-    N = 30
-    t_max = 325
-    save_location_RAW = SAVE_PATH_RAW + '_nodroughtnotrade'
-    save_location_RES = SAVE_PATH_RES + '_nodroughtnotrade_plots'
+def run_function(r_trade=6000., precip_amplitude=1.,
+                 n=30, steps=350, filename='./'):
+    """Initializes and runs model and retrieves and saves data afterwards.
 
-    if os.path.exists(save_location_RAW):
-        shutil.rmtree(save_location_RAW)
-    os.makedirs(save_location_RAW)
-    save_location_RAW += "/"
-    if os.path.exists(save_location_RES):
-        shutil.rmtree(save_location_RES)
-    os.makedirs(save_location_RES)
-    save_location_RES += "/"
+    Parameters
+    ----------
+    precip_amplitude: float
+        the prefactor to the precipitation modulation. 0. means no modulation
+        1. means original modulation >1. means amplified modulation.
+    r_trade: float
+        value of trade income
+    n: int
+        number of initial settlements
+    steps: int
+        number of steps to run the model
+    rf_filename: string
+    """
 
-    m = Model(N)
-    m.population_control = False
-    m.crop_income_mode = "sum"
-    m.precipitation_modulation = False
-    m.r_trade = 0.
-    m.run(t_max, save_location_RAW)
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, repr(t_max)])
+    # Initialize Model
 
-# Experiment with crop income that is calculated as the
-# sum over all cropped cells
-if sub_experiment == 1:
-    from Python.MayaSim.model import Model
+    m = Model(n=n, output_data_location=filename, debug=test)
+    m.r_trade = r_trade
+    m.precipitation_amplitude = precip_amplitude
+    m.output_level = 'trajectory'
 
-    N = 30
-    t_max = 325
-    save_location_RAW = SAVE_PATH_RAW + '_notrade'
-    save_location_RES = SAVE_PATH_RES + '_notrade_plots'
+    # Store initial conditions and parameters:
 
-    if os.path.exists(save_location_RAW):
-        shutil.rmtree(save_location_RAW)
-    os.makedirs(save_location_RAW)
-    save_location_RAW += "/"
-    if os.path.exists(save_location_RES):
-        shutil.rmtree(save_location_RES)
-    os.makedirs(save_location_RES)
-    save_location_RES += "/"
+    res = {"initials": pd.DataFrame({"Settlement X Possitions":
+                                     m.settlement_positions[0],
+                                     "Settlement Y Possitions":
+                                     m.settlement_positions[1],
+                                     "Population": m.population}),
+           "Parameters": pd.Series({key: getattr(m, key)
+                                    for key in dir(Parameters)
+                                    if not key.startswith('__')
+                                    and not callable(key)})
+           }
 
-    m = Model(N)
-    m.population_control = False
-    m.precipitation_modulation = True
-    m.r_trade = 0.
-    m.crop_income_mode = "sum"
-    m.run(t_max, save_location_RAW)
-    call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-          save_location_RES, repr(t_max)])
+    # Run model
 
-# plot results for both sub experiments
-if sub_experiment == 2:
+    if test:
+        steps = 5
+    m.run(steps)
 
-    t_max = 325
-    for ex in ["notrade", "nodroughtnotrade"]:
-        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
-        moviefy(save_location_RES)
+    # Save results
 
-# plot results for both sub experiments
-if sub_experiment == 3:
-    N = 30
-    t_max = 325
+    res["trajectory"] = m.get_trajectory()
 
-    for ex in ["notrade", "nodroughtnotrade"]:
-        save_location_RAW = SAVE_PATH_RAW + '_{}/'.format(ex)
-        save_location_RES = SAVE_PATH_RES + '_{}_plots/'.format(ex)
-        call(["python", "visuals/mayasim_visuals.py", save_location_RAW,
-              save_location_RES, repr(t_max)])
+    try:
+        with open(filename, 'wb') as dumpfile:
+            cP.dump(res, dumpfile)
+            return 1
+    except IOError:
+        return -1
+
+
+def run_experiment(argv):
+
+    global test
+
+    if len(argv) > 1:
+        test = bool(int(argv[1]))
+
+    test_folder = ['', 'test_output/'][int(test)]
+
+    if getpass.getuser() == "kolb":
+        save_path_raw = "/p/tmp/kolb/Mayasim/output_data/{}X_ensemble".format(
+            test_folder)
+        save_path_res = "/home/kolb/Mayasim/output_data/{}X_ensemble".format(
+            test_folder)
+    elif getpass.getuser() == "jakob":
+        save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
+                        "output_data/{}X_ensemble/".format(test_folder)
+        save_path_res = save_path_raw
+    else:
+        save_path_res = save_path_raw = './'
+
+        save_path_raw += "raw_data/"
+        save_path_res += "results/"
+
+    estimators = {"<mean_trajectories>":
+                  lambda fnames: pd.concat([np.load(f)["trajectory"]
+                                            for f in fnames]).groupby(
+                      level=0).mean(),
+                  "<sigma_trajectories>":
+                  lambda fnames: pd.concat([np.load(f)["trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).std()
+                  }
+
+    precip_amplitudes = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.] \
+        if not test else [0., 1.]
+    r_trades = [5000., 6000., 7000., 8000., 9000., 10000.] \
+        if not test else [6000., 8000.]
+
+    parameter_combinations = list(it.product(precip_amplitudes, r_trades))
+
+    name = "trade_income_transition"
+    index = {0: 'precip_amplitude', 1: 'r_trade'}
+    sample_size = 10
+
+    h = handle(sample_size=sample_size,
+               parameter_combinations=parameter_combinations,
+               index=index,
+               path_raw=save_path_raw,
+               path_res=save_path_res,
+               use_kwargs=True)
+
+    h.compute(run_func=run_function)
+    h.resave(eva=estimators, name=name)
+
+
+if __name__ == "__main__":
+
+    run_experiment(sys.argv)

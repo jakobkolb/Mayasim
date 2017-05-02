@@ -9,8 +9,8 @@ class ModelParameters(object):
     output_level = 'spatial'   # either 'spatial' or 'trajectory'
 
     # INITIAL NUMBER OF SETTLEMENTS
-    min_init_inhabitants = 5000	    # 1000
-    max_init_inhabitants = 10000    # 2000
+    min_init_inhabitants = 1000	    # 1000
+    max_init_inhabitants = 2000    # 2000
 
     timesteps = 325			# 325
 
@@ -27,6 +27,7 @@ class ModelParameters(object):
     # multiplier for precipitation according to climate cycle
     precipitation_variation = np.array([-0.06, -0.12, -0.18,
                                         -0.12, -0.06, 0., 0.06, 0.])
+    precipitation_amplitude = 1.
     # length of period with constant rainfall
     climate_var = 3
 
