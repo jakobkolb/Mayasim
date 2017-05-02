@@ -28,7 +28,8 @@ test = True
 
 
 def run_function(r_trade=6000., precip_amplitude=1.,
-                 n=30, steps=350, filename='./'):
+                 n=30, kill_cities_without_cropps=False,
+                 steps=350, filename='./'):
     """Initializes and runs model and retrieves and saves data afterwards.
 
     Parameters
@@ -40,6 +41,8 @@ def run_function(r_trade=6000., precip_amplitude=1.,
         value of trade income
     n: int
         number of initial settlements
+    kill_cities_without_cropps: bool
+        switch to set whether or not to kill settlements without agriculture
     steps: int
         number of steps to run the model
     rf_filename: string
