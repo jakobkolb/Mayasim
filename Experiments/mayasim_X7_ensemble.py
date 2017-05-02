@@ -73,7 +73,7 @@ def RUN_FUNC(r_bca=0.2, r_eco=0.0002, population_control=False,
 
     # retrieve results
 
-    res["trajectory"] = m._get_trajectory()
+    res["trajectory"] = m.get_trajectory()
 
     with open(filename, 'wb') as dumpfile:
         cp.dump(res, dumpfile)

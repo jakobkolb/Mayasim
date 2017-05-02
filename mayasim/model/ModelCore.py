@@ -21,6 +21,7 @@ import traceback
 import warnings
 import sys
 
+
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
 
     log = file if hasattr(file, 'write') else sys.stderr
@@ -29,21 +30,52 @@ def warn_with_traceback(message, category, filename, lineno, file=None, line=Non
 
 warnings.showwarning = warn_with_traceback
 
+
 class ModelCore(Parameters):
 
-    def __init__(self, n=30, interactive_output=False,
-                 output_data_location='./', debug=False):
+    def __init__(self, n=30,
+                 output_data_location='./', debug=False,
+                 output_trajectory=True,
+                 output_settlement_data=True,
+                 output_geographic_data=True):
+        """
+        Instance of the MayaSim model. 
+        
+        Parameters
+        ----------
+        n: int
+            number of settlements to initialize,
+        output_data_location: path_like
+            string stating the folder path to which the output
+            files will be writen,
+        debug: bool
+            switch for debugging output from model,
+        output_trajectory: bool
+            switch for output of trajectory data,
+        output_settlement_data: bool
+            switch for output of settlement data,
+        output_geographic_data: bool
+            switch for output of geographic data.
+        """
+
+        # Input/Output settings:
 
         input_data_location = pkg_resources.resource_filename('mayasim', 'input_data/')
 
-        self.interactive_output = interactive_output
         self.output_data_location = output_data_location
 
         self.debug = debug
 
-        # *******************************************************************
-        # MODEL PARAMETERS (to be varied)
-        # *******************************************************************
+        self.output_trajectory = output_trajectory
+        self.output_settlement_data = output_settlement_data
+        self.output_geographic_data = output_geographic_data
+
+        # Settlement and geographic data will be written to files in each time step,
+        # Trajectory data will be kept in one data structure to be read out, when
+        # the model run finished.
+
+        self.settlement_output_path = lambda i: output_data_location + 'settlement_data_{0:03d}'.format(i)
+        self.geographic_output_path = lambda i: output_data_location + 'geographic_data_{0:03d}'.format(i)
 
         self.trajectory = []
 
@@ -163,7 +195,7 @@ class ModelCore(Parameters):
 
         # demographic variables
         self.birth_rate = [self.birth_rate_parameter] * n
-        self.death_rate = [0.1 + 0.05 * np.random.random() for i in range(n)]
+        self.death_rate = [0.1 + 0.05 * r for r in list(np.random.random(n))]
         self.population = list(np.random.randint(self.min_init_inhabitants,
                                                  self.max_init_inhabitants,
                                                  n).astype(float))
@@ -630,9 +662,6 @@ class ModelCore(Parameters):
         self.soil_deg[self.forest_state == 3] -= self.reg_rate
         self.soil_deg[self.soil_deg < 0] = 0
 
-    # ----------------------------------------------------------
-    # functions for trading
-
     def get_rank(self):
         # depending on population ranks are assigned
         # attention: ranks are reverted with respect to Netlogo MayaSim !
@@ -738,14 +767,14 @@ class ModelCore(Parameters):
         # agricultural benefit of cropping
         for city in self.populated_cities:
             crops = bca[self.cropped_cells[city][0], self.cropped_cells[city][1]]
-# ##EQUATION###################################################################
+            # EQUATION #
             if self.crop_income_mode == "mean":
                 self.crop_yield[city] = self.r_bca_mean * np.nanmean(crops[crops>0])
             elif self.crop_income_mode == "sum":
                 self.crop_yield[city] = self.r_bca_sum * np.nansum(crops[crops>0])
-# ##EQUATION###################################################################
-        self.crop_yield = [0 if np.isnan(self.crop_yield[index]) \
-                else self.crop_yield[index] for index in range(len(self.crop_yield))]
+        self.crop_yield = [0 if np.isnan(self.crop_yield[index])
+                           else self.crop_yield[index]
+                           for index in range(len(self.crop_yield))]
         return
 
     def get_eco_income(self, es):
@@ -761,7 +790,7 @@ class ModelCore(Parameters):
 # ##EQUATION###################################################################
         return
 
-    def get_trade_income(self ):
+    def get_trade_income(self):
 # ##EQUATION###################################################################
         self.trade_income = [1./30.*(1 +
                                     self.comp_size[i]/self.centrality[i])**0.9
@@ -781,17 +810,16 @@ class ModelCore(Parameters):
         # for i, p in enumerate(sorted(prints)):
         #     print(p)
         # combine agricultural, ecosystem service and trade benefit
-# ##EQUATION###################################################################
-        self.real_income_pc = [(self.crop_yield[index] \
-                + self.eco_benefit[index] \
-                + self.trade_income[index]) \
-                /self.population[index] \
-                if value > 0 else 0 \
-                for index, value in enumerate(self.population)]
-# ##EQUATION###################################################################
+        # EQUATION #
+        self.real_income_pc = [(self.crop_yield[index]
+                                + self.eco_benefit[index]
+                                + self.trade_income[index])
+                               / self.population[index]
+                               if value > 0 else 0
+                               for index, value in enumerate(self.population)]
         return
 
-    def migration(self,es): 
+    def migration(self, es):
         # if outmigration rate exceeds threshold, found new settlement
 
         vacant_lands = np.isfinite(es)
@@ -879,10 +907,25 @@ class ModelCore(Parameters):
 
         return
 
-    def spawn_city(self, a, b, mig_pop):
+    def spawn_city(self, x, y, mig_pop):
+        """
+        Spawn a new city at given location with 
+        given population and append it to all necessary lists.
+        
+        Parameters
+        ----------
+        x: int
+            x location of new city on map
+        y: int
+            y location of new city on map
+        mig_pop: int
+            initial population of new city
+        """
+
+
         # extend all variables to include new city
         self.number_settlements += 1
-        self.settlement_positions = np.append(self.settlement_positions, [[a], [b]], 1)
+        self.settlement_positions = np.append(self.settlement_positions, [[x], [y]], 1)
         self.age.append(0)
         self.birth_rate.append(self.birth_rate_parameter)
         self.death_rate.append(0.1 + 0.05 * np.random.rand())
@@ -891,8 +934,8 @@ class ModelCore(Parameters):
         self.out_mig.append(0)
         self.number_cells_in_influence.append(0)
         self.area_of_influence.append(0)
-        self.cells_in_influence.append([[a], [b]])
-        self.cropped_cells.append([[a], [b]])
+        self.cells_in_influence.append([[x], [y]])
+        self.cropped_cells.append([[x], [y]])
         self.number_cropped_cells.append(1)
         self.crop_yield.append(0)
         self.eco_benefit.append(0)
@@ -904,7 +947,16 @@ class ModelCore(Parameters):
         self.trade_income.append(0)
         self.real_income_pc.append(0)
 
-    def run(self, t_max):
+    def run(self, t_max=1):
+        """
+        Run the model for a given number of steps. 
+        If no number of steps is given, the model is integrated for one step
+        
+        Parameters
+        ----------
+        t_max: int
+            number of steps to integrate the model
+        """
 
         # initialize time step
         t = 0
@@ -959,133 +1011,137 @@ class ModelCore(Parameters):
             self.migration(es)
             self.kill_cities()
 
-            self.frame_output(t, npp, wf, ag, es, bca,
-                              abandoned, sown)
-
+            self.step_output(t, npp, wf, ag, es, bca,
+                             abandoned, sown)
 
     def init_output(self):
+        """initializes data output for trajectory, settlements and geography depending on settings"""
 
-        if self.output_level == 'trajectory':
+        if self.output_trajectory:
             self.init_trajectory_output()
 
-        if self.interactive_output:
-            visual_init_data = {'shape': (self.rows, self.columns),
-                                'location': self.output_data_location}
-            with open(self.output_data_location +
-                              '/init_frame.pkl', 'wb') as f:
-                pkl.dump(visual_init_data, f)
+        if self.output_settlement_data:
+            settlement_init_data = {'shape': (self.rows, self.columns)}
+            with open(self.settlement_output_path(0), 'wb') as f:
+                pkl.dump(settlement_init_data, f)
 
-    def frame_output(self, t, npp, wf, ag, es, bca, abandoned, sown):
+        if self.output_geographic_data:
+            pass
+
+    def step_output(self, t, npp, wf, ag, es, bca, abandoned, sown):
         """
-        save stuff to location depending on output settings
+        call different data saving routines depending on settings.
+        
         Parameters
-
+        ----------
+        t: int
+            Timestep number to append to save file path
+        npp: numpy array
+            Net Primary Productivity on cell basis
+        wf: numpy array
+            Water flow through cell
+        ag: numpy array
+            Agricultural productivity of cell
+        es: numpy array
+            Ecosystem services of cell (that are summed and weighted to 
+            calculate ecosystems service income)
+        bca: numpy array
+            Benefit cost analysis of agriculture on cell.
+        abandoned: int
+            Number of cells that was abandoned in the previous time step
+        sown: int
+            Number of cells that was newly cropped in the previous time step
         """
+
         # append stuff to trajectory
-        if self.output_level == 'trajectory':
-                self.update_trajectory_output(t, [npp, wf, ag, es, bca])
+        if self.output_trajectory:
+            self.update_trajectory_output(t, [npp, wf, ag, es, bca])
 
         # save maps of spatial data
-        elif self.output_level == 'spatial':
-            self.save_verbose_output(t, npp, wf, ag, es, bca, abandoned,
-                                     sown, self.output_data_location)
+        if self.output_geographic_data:
+            self.save_geographic_output(t, npp, wf, ag, es, bca, abandoned, sown)
 
-        # save dictionaries for video frame plots
-        if self.interactive_output:
-            data = {'population': self.population,
-                    'real_income': self.real_income_pc,
-                    'ag_income': [self.crop_yield[i]/population
-                                  for i, population
-                                  in enumerate(self.population)],
-                    'es_income': [self.eco_benefit[i]/population
-                                  for i, population
-                                  in enumerate(self.population)],
-                    'trade_income':[self.trade_income[i]/population
-                                    for i, population
-                                    in enumerate(self.population)],
-                    'adjacency': self.adjacency,
-                    'settlement_positions': self.settlement_positions,
-                    }
-            with open(self.output_data_location
-                              + '/frame_{0:03d}.pkl'.format(t), 'wb') as f:
-                pkl.dump(data, f)
+        # save data on settlement basis
+        if self.output_settlement_data:
+            self.save_settlement_output(t)
 
-    def save_verbose_output(self, t, npp, wf, ag, es, bca,
-                            abandoned, sown, location):
+    def save_settlement_output(self, t):
+        """
+        Organize settlement based data in Pandas Dataframe
+        and save to file.
+        
+        Parameters
+        ----------
+        t: int
+            Timestep number to append to save file path
+            
+        """
+        colums = ['population',
+                  'real income',
+                  'ag income',
+                  'es income',
+                  'trade income',
+                  'x position',
+                  'y position']
+        data = [self.population,
+                self.real_income_pc,
+                self.crop_yield,
+                self.eco_benefit,
+                self.trade_income,
+                list(self.settlement_positions[0]),
+                list(self.settlement_positions[1])]
 
-        def stack_ragged(array_list, axis=0):
-            lengths = [np.shape(a)[axis] for a in array_list]
-            idx = np.cumsum(lengths[:-1])
-            stacked = np.concatenate(array_list, axis=axis)
-            return stacked, idx
+        data = list(map(list, zip(*data)))
 
-        def save_stacked_array(fname, array_list, axis=0):
-            stacked, idx = stack_ragged(array_list, axis=axis)
-            np.savez(fname, stacked_array=stacked, stacked_index=idx)
+        data_frame = pandas.DataFrame(columns=colums, data=data)
 
-        def load_stacked_arrays(fname, axis=0):
-            npzfile = np.load(fname)
-            idx = npzfile['stacked_index']
-            stacked = npzfile['stacked_array']
-            return np.split(stacked, idx, axis=axis)
+        with open(self.settlement_output_path(t), 'wb') as f:
+            pkl.dump(data_frame, f)
 
-        # save variables of interest
-        np.save(location + "rain_{0:03d}.npy".format(t, ),
-                self.spaciotemporal_precipitation)
-        np.save(location + "npp_{0:03d}.npy".format(t, ),
-                npp)
-        np.save(location + "forest_{0:03d}.npy".format(t, ),
-                self.forest_state)
-        np.save(location + "waterflow_{0:03d}.npy".format(t, ),
-                wf)
-        np.save(location + "AG_{0:03d}.npy".format(t, ),
-                ag)
-        np.save(location + "ES_{0:03d}.npy".format(t, ),
-                es)
-        np.save(location + "bca_{0:03d}.npy".format(t, ),
-                bca)
-        save_stacked_array(location + "cells_in_influence_{0:03d}".format(t, ),
-                           self.cells_in_influence, axis=1)
-        np.save(location + "number_cells_in_influence_{0:03d}.npy".format(t, ),
-                self.number_cells_in_influence)
-        save_stacked_array(location + "cropped_cells_{0:03d}".format(t, ),
-                           self.cropped_cells, axis=1)
-        np.save(location + "number_cropped_cells_{0:03d}.npy".format(t, ),
-                self.number_cropped_cells)
-        np.save(location + "abnd_sown_{0:03d}.npy".format(t, ),
-                np.array((abandoned, sown)))
-        np.save(location + "crop_yield_{0:03d}.npy".format(t, ),
-                self.crop_yield)
-        np.save(location + "eco_benefit_pc_{0:03d}.npy".format(t, ),
-                self.eco_benefit)
-        np.save(location + "real_income_pc_{0:03d}.npy".format(t, ),
-                self.real_income_pc)
-        np.save(location + "population_{0:03d}.npy".format(t, ),
-                self.population)
-        np.save(location + "out_mig_{0:03d}.npy".format(t, ),
-                self.out_mig)
-        np.save(location + "death_rate_{0:03d}.npy".format(t, ),
-                self.death_rate)
-        np.save(location + "soil_deg_{0:03d}.npy".format(t, ),
-                self.soil_deg)
+    def save_geographic_output(self, t, npp, wf, ag, es, bca,
+                               abandoned, sown):
+        """
+        Organize Geographic data in dictionary (for separate layers
+        of data) and save to file.
+        
+        Parameters
+        ----------
+        t: int
+            Timestep number to append to save file path
+        npp: numpy array
+            Net Primary Productivity on cell basis
+        wf: numpy array
+            Water flow through cell
+        ag: numpy array
+            Agricultural productivity of cell
+        es: numpy array
+            Ecosystem services of cell (that are summed and weighted to 
+            calculate ecosystems service income)
+        bca: numpy array
+            Benefit cost analysis of agriculture on cell.
+        abandoned: int
+            Number of cells that was abandoned in the previous time step
+        sown: int
+            Number of cells that was newly cropped in the previous time step
+        """
 
-        np.save(location + "pop_gradient_{0:03d}.npy".format(t, ),
-                self.pop_gradient)
-        np.save(location + "adjacency_{0:03d}.npy".format(t, ),
-                self.adjacency)
-        np.save(location + "degree_{0:03d}.npy".format(t, ),
-                self.degree)
-        np.save(location + "comp_size_{0:03d}.npy".format(t, ),
-                self.comp_size)
-        np.save(location + "centrality_{0:03d}.npy".format(t, ),
-                self.centrality)
-        np.save(location + "trade_income_{0:03d}.npy".format(t, ),
-                self.trade_income)
+        data = {'rain': self.spaciotemporal_precipitation,
+                'npp': npp,
+                'forest': self.forest_state,
+                'waterflow': wf,
+                'AG': ag,
+                'ES': es,
+                'BCA': bca,
+                'cells in influence': self.cells_in_influence,
+                'number of cells in influence': self.number_cells_in_influence,
+                'cropped cells': self.cropped_cells,
+                'number of cropped cells': self.number_cropped_cells,
+                'abandoned sown': np.array([abandoned, sown]),
+                'soil degradation': self.soil_deg,
+                'population gradient': self.pop_gradient}
 
-        np.save(location + "number_settlements_{0:03d}.npy".format(t, ),
-                self.number_settlements)
-        np.save(location + "settlement_positions_{0:03d}.npy".format(t, ),
-                self.settlement_positions)
+        with open(self.geographic_output_path(t), 'wb') as f:
+            pkl.dump(data, f)
 
     def init_trajectory_output(self):
         self.trajectory.append(['time',
@@ -1144,7 +1200,7 @@ class ModelCore(Parameters):
                                 np.nanmax(self.soil_deg),
                                 np.nanmax(self.pop_gradient)])
 
-    def _get_trajectory(self):
+    def get_trajectory(self):
         try:
             trj = self.trajectory
             columns = trj.pop(0)
@@ -1156,28 +1212,31 @@ class ModelCore(Parameters):
 
 if __name__ == "__main__":
 
+    import matplotlib.pyplot as plt
+
     N = 50
 
     # define saving location
     comment = "testing_version"
     now = datetime.datetime.now()
     location = "output_data/" \
-               + now.strftime("%d_%m_%H-%M-%Ss") \
-               + "_Output_"+comment + '/'
+               + "Output_" + comment + '/'
     os.makedirs(location)
 
     # initialize Model
-    model = Model(n=N,
-                  input_data_location='../input_data/',
-                  output_data_location=location,
-                  interactive_output=True)
-
+    model = ModelCore(n=N, debug=True,
+                      output_trajectory=True,
+                      output_settlement_data=True,
+                      output_geographic_data=True,
+                      output_data_location=location)
     # run Model
-    timesteps = 500
-    model.crop_income_mode='sum'
+    timesteps = 5
+    model.crop_income_mode = 'sum'
     model.output_level = 'trajectory'
     model.population_control = 'False'
     model.run(timesteps)
 
-    with open(location, 'wb') as dumpfile:
-        pickle.dump(model._get_trajectory_output(), dumpfile)
+    trj = model.get_trajectory()
+    plot = trj.plot()
+    plt.show()
+    plt.savefig(plot, location + 'plot')
