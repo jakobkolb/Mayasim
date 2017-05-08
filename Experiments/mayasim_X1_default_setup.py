@@ -23,7 +23,7 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 test = True
 
 
-def run_function(n=30, steps=350, filename='./'):
+def run_function(N=30, steps=350, filename='./'):
     """
     Set up the Model for default Parameters and determine
     which parts of the output are saved where.
@@ -43,7 +43,11 @@ def run_function(n=30, steps=350, filename='./'):
 
     # initialize the Model
 
-    m = Model(n)
+    m = Model(N, output_data_location=filename, debug=test)
+
+    if not filename.endswith('s0.pkl'):
+        m.output_geographic_data = False
+        m.output_settlement_data = False
 
     # store initial conditions and Parameters
 
@@ -69,8 +73,12 @@ def run_function(n=30, steps=350, filename='./'):
 
     res["trajectory"] = m.get_trajectory()
 
-    with open(filename, 'wb') as dumpfile:
-        cp.dump(res, dumpfile)
+    try:
+        with open(filename, 'wb') as dumpfile:
+            cp.dump(res, dumpfile)
+            return 1
+    except IOError:
+        return -1
 
 
 def run_experiment(argv):

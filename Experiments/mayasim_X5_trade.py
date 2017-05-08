@@ -51,9 +51,15 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Initialize Model
 
     m = Model(n=n, output_data_location=filename, debug=test)
+
+    if not filename.endswith('s0.pkl'):
+        m.output_geographic_data = False
+        m.output_settlement_data = False
+
     m.r_trade = r_trade
     m.precipitation_amplitude = precip_amplitude
     m.output_level = 'trajectory'
+
 
     # Store initial conditions and parameters:
 

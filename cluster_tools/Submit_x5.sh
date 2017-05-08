@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --qos=medium
-#SBATCH --job-name=Maya_5_0
-#SBATCH --output=ms_x5_0_%j.out
-#SBATCH --error=ms_x5_0_%j.err
+#SBATCH --job-name=Maya_5
+#SBATCH --output=ms_x5_%j.out
+#SBATCH --error=ms_x5_%j.err
 #SBATCH --nodes=4
 #SBATCH --tasks-per-node=16
 

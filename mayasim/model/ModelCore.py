@@ -54,7 +54,8 @@ class ModelCore(Parameters):
         input_data_location = pkg_resources.\
             resource_filename('mayasim', 'input_data/')
 
-        self.output_data_location = output_data_location
+        # remove file ending
+        self.output_data_location = output_data_location.rsplit('.', 1)[0]
 
         # Debugging settings
         self.debug = debug
@@ -82,8 +83,12 @@ class ModelCore(Parameters):
         # Trajectory data will be kept in one data structure to be read out, when
         # the model run finished.
 
-        self.settlement_output_path = lambda i: output_data_location + 'settlement_data_{0:03d}'.format(i)
-        self.geographic_output_path = lambda i: output_data_location + 'geographic_data_{0:03d}'.format(i)
+        self.settlement_output_path = \
+            lambda i: self.output_data_location \
+                      + 'settlement_data_{0:03d}'.format(i)
+        self.geographic_output_path = \
+            lambda i: self.output_data_location \
+                      + 'geographic_data_{0:03d}'.format(i)
 
         self.trajectory = []
 
@@ -1051,6 +1056,15 @@ class ModelCore(Parameters):
 
         if self.output_trajectory:
             self.init_trajectory_output()
+
+        if self.output_geographic_data or self.output_settlement_data:
+
+            # If output data location is needed and does not exist, create it.
+            if not os.path.exists(self.output_data_location):
+                os.makedirs(self.output_data_location)
+
+            if not self.output_data_location.endswith('/'):
+                self.output_data_location += '/'
 
         if self.output_settlement_data:
             settlement_init_data = {'shape': (self.rows, self.columns)}

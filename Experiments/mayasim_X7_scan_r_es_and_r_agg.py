@@ -78,13 +78,19 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
 
     # initialize the Model
 
-    m = Model(N)
+    m = Model(N, output_data_location=filename, debug=test)
+    if not filename.endswith('s0.pkl'):
+        m.output_geographic_data = False
+        m.output_settlement_data = False
+
     m.population_control = population_control
     m.crop_income_mode = crop_income_mode
     m.r_bca_sum = r_bca
     m.r_es_sum = r_eco
     m.kill_cities_without_crops = kill_cropless
     m.output_level = 'trajectory'
+
+
 
     # store initial conditions and Parameters
 
@@ -112,8 +118,12 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
 
     res["trajectory"] = m.get_trajectory()
 
-    with open(filename, 'wb') as dumpfile:
-        cp.dump(res, dumpfile)
+    try:
+        with open(filename, 'wb') as dumpfile:
+            cp.dump(res, dumpfile)
+            return 1
+    except IOError:
+        return -1
 
 
 def run_experiment(argv):
@@ -142,34 +152,43 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
+    global test
+
     # Parse switches from input
-    if len(sys.argv) > 1:
-        sub_experiment = int(argv[1])
-    else:
-        sub_experiment = 0
+    if len(argv) > 1:
+        test = int(argv[1])
+
 
     # Generate paths according to switches and user name
 
-    if getpass.getuser() == "kolb":
-        save_path_raw = "/p/tmp/kolb/Mayasim/output_data/X_ensemble"
-        save_path_res = "/home/kolb/Mayasim/output_data/X_ensemble"
-    elif getpass.getuser() == "jakob":
-        save_path_raw = \
-            "/home/jakob/PhD/Project_MayaSim/Python/output_data/X_ensemble/"
-        save_path_res = save_path_raw
+    test_folder = ['', 'test_output/'][int(test)]
+    experiment_folder = 'X5_eco_income/'
+    raw = 'raw_data/'
+    res = 'results/'
 
-    save_path_raw = save_path_raw + "raw_data/"
-    save_path_res = save_path_res + "results/"
+    if getpass.getuser() == "kolb":
+        save_path_raw = "/p/tmp/kolb/Mayasim/output_data/{}{}{}".format(
+            test_folder, experiment_folder, raw)
+        save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
+            test_folder, experiment_folder, res)
+    elif getpass.getuser() == "jakob":
+        save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
+                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+        save_path_res = "/home/jakob/Project_MayaSim/Python/" \
+                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+    else:
+        save_path_res = './{}'.format(res)
+        save_path_raw = './{}'.format(raw)
 
     # Generate parameter combinations
 
     index = {0: "r_bca", 1: "r_eco", 2: "kill_cropless"}
-    if sub_experiment == 0:
+    if test == 0:
         r_bcas = [0.1, 0.15, 0.2, 0.25, 0.3]
         r_ecos = [0.0001, 0.00015, 0.0002, 0.00025]
         kill_cropless = [True, False]
         test=False
-    if sub_experiment == 1:
+    if test == 1:
         r_bcas = [0.1, 0.15]
         r_ecos = [0.0001, 0.00015]
         kill_cropless = [True, False]
