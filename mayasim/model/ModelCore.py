@@ -1278,7 +1278,6 @@ if __name__ == "__main__":
     # run Model
     timesteps = 5
     model.crop_income_mode = 'sum'
-    model.output_level = 'trajectory'
     model.population_control = 'False'
     model.run(timesteps)
 

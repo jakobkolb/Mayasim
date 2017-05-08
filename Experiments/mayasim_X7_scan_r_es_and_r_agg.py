@@ -88,9 +88,6 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
     m.r_bca_sum = r_bca
     m.r_es_sum = r_eco
     m.kill_cities_without_crops = kill_cropless
-    m.output_level = 'trajectory'
-
-
 
     # store initial conditions and Parameters
 
@@ -162,7 +159,7 @@ def run_experiment(argv):
     # Generate paths according to switches and user name
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X5_eco_income/'
+    experiment_folder = 'X7_eco_income/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -203,13 +200,13 @@ def run_experiment(argv):
     name = "mayasim_ensemble_testing"
 
     estimators = {"<mean_trajectories>":
-               lambda fnames: pd.concat([np.load(f)["trajectory"]
-                                         for f in
-                                         fnames]).groupby(level=0).mean(),
-           "<sigma_trajectories>":
-               lambda fnames: pd.concat([np.load(f)["trajectory"]
-                                         for f in
-                                         fnames]).groupby(level=0).std()
+                      lambda fnames:
+                      pd.concat([np.load(f)["trajectory"]
+                                 for f in fnames]).groupby(level=0).mean(),
+                  "<sigma_trajectories>":
+                      lambda fnames:
+                      pd.concat([np.load(f)["trajectory"]
+                                 for f in fnames]).groupby(level=0).std()
                   }
 
     # Run computation and post processing.
