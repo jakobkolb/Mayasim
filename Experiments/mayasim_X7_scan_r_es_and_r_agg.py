@@ -162,7 +162,7 @@ def run_experiment(argv):
     # Generate paths according to switches and user name
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X5_eco_income/'
+    experiment_folder = 'X7_eco_income/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -179,6 +179,8 @@ def run_experiment(argv):
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
+
+        print(save_path_raw)
 
     # Generate parameter combinations
 
