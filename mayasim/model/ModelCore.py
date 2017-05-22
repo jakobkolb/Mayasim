@@ -491,6 +491,8 @@ class ModelCore(Parameters):
                           for c, p in enumerate(self.population)]
         # occupied_cells is a mask of all occupied cells calculated as the
         # unification of the cropped cells of all settlements.
+        if self.debug:
+            print(np.shape(self.occupied_cells))
         occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
         for index in range(len(occup[0])):
             self.occupied_cells[occup[0, index], occup[1, index]] = 1
@@ -1223,7 +1225,10 @@ class ModelCore(Parameters):
                                           for value in self.comp_size]))
         mean_cluster_size = float(sum(self.comp_size))/number_of_components \
             if number_of_components > 0 else 0
-        max_cluster_size = max(self.comp_size)
+        try:
+            max_cluster_size = max(self.comp_size)
+        except:
+            max_cluster_size = 0
         total_agriculture_cells = sum(self.number_cropped_cells)
 
         self.trajectory.append([time,
@@ -1256,6 +1261,39 @@ class ModelCore(Parameters):
 
         return df
 
+    def run_test(self):
+        import matplotlib.pyplot as plt
+
+        N = 50
+
+        # define saving location
+        comment = "testing_version"
+        now = datetime.datetime.now()
+        location = "output_data/" \
+                   + "Output_" + comment + '/'
+        os.makedirs(location)
+
+        # initialize Model
+        model = ModelCore(n=N, debug=True,
+                          output_trajectory=True,
+                          output_settlement_data=True,
+                          output_geographic_data=True,
+                          output_data_location=location)
+        # run Model
+        timesteps = 5
+        model.crop_income_mode = 'sum'
+        model.r_es_sum = 0.0001
+        model.r_bca_sum = 0.1
+        model.population_control = 'False'
+        model.run(timesteps)
+
+        trj = model.get_trajectory()
+        plot = trj.plot()
+        plt.show()
+        plt.savefig(plot, location + 'plot')
+
+        return 1
+
 if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
@@ -1278,6 +1316,8 @@ if __name__ == "__main__":
     # run Model
     timesteps = 5
     model.crop_income_mode = 'sum'
+    model.r_es_sum = 0.0001
+    model.r_bca_sum = 0.1
     model.population_control = 'False'
     model.run(timesteps)
 
