@@ -54,6 +54,7 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     m.r_trade = r_trade
     m.precipitation_amplitude = precip_amplitude
     m.output_level = 'trajectory'
+    m.kill_cities_without_crops = kill_cities_without_cropps
 
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
@@ -155,11 +156,16 @@ def run_experiment(argv):
         if not test else [0., 1.]
     r_trades = [5000., 6000., 7000., 8000., 9000., 10000.] \
         if not test else [6000., 8000.]
+    kill_cities = [True, False]
 
-    parameter_combinations = list(it.product(precip_amplitudes, r_trades))
+    parameter_combinations = list(it.product(precip_amplitudes,
+                                             r_trades,
+                                             kill_cities))
 
     name = "trade_income_transition"
-    index = {0: 'precip_amplitude', 1: 'r_trade'}
+    index = {0: 'precip_amplitude',
+             1: 'r_trade',
+             2: 'kill_cities_without_cropps'}
     sample_size = 10
 
     h = handle(sample_size=sample_size,

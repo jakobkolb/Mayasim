@@ -736,11 +736,14 @@ class ModelCore(Parameters):
                 if sum(nearby) != 0:
                     try:
                         new_partner = np.nanargmax(self.population*nearby)
+                        self.adjacency[city, new_partner] = \
+                            self.adjacency[new_partner, city] = 1
                     except ValueError:
-                        print(self.population, nearby)
                         print('ERROR in new partner')
-                    self.adjacency[city, new_partner] =\
-                        self.adjacency[new_partner, city] = 1
+                        print(np.shape(self.population),
+                              np.shape(self.settlement_positions[0]))
+                        sys.exit(-1)
+
         return
 
     def get_comps(self): 
