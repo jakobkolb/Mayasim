@@ -903,12 +903,22 @@ class ModelCore(Parameters):
 
     def kill_cities(self):
 
+        # BUG: cities can be added twice,
+        # if they have neither population nor cropped cells.
+        # this might lead to unexpected consequences. see what happenes,
+        # when after adding all cities, only unique ones are kept
+
         # kill cities if they have either no crops or no inhabitants:
         dead_city_indices = [i for i in range(len(self.population))
                              if self.population[i] <= self.min_city_size]
+
         if self.kill_cities_without_crops:
             dead_city_indices += [i for i in range(len(self.population))
                                   if (len(self.cropped_cells[i][0]) <= 0)]
+
+        # the following expression only keeps the unique entries.
+        # might solve the problem.
+        dead_city_indices = list(set(dead_city_indices))
 
         # remove entries from variables
         # simple lists that can be deleted elementwise

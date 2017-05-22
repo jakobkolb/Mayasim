@@ -190,8 +190,8 @@ def run_experiment(argv):
         kill_cropless = [True, False]
         test=False
     if test == 1:
-        r_bcas = [0.1, 0.15]
-        r_ecos = [0.0001, 0.00015]
+        r_bcas = [0.1, 0.3]
+        r_ecos = [0.0001, 0.00025]
         kill_cropless = [True, False]
         test=True
 

@@ -76,7 +76,7 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Run model
 
     if test:
-        steps = 5
+        steps = 4
     m.run(steps)
 
     # Save results
@@ -166,7 +166,7 @@ def run_experiment(argv):
     index = {0: 'precip_amplitude',
              1: 'r_trade',
              2: 'kill_cities_without_cropps'}
-    sample_size = 10
+    sample_size = 10 if not test else 2
 
     h = handle(sample_size=sample_size,
                parameter_combinations=parameter_combinations,
