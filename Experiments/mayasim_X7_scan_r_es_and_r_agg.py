@@ -179,6 +179,8 @@ def run_experiment(argv):
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
+        print(save_path_raw)
+
     # Generate parameter combinations
 
     index = {0: "r_bca", 1: "r_eco", 2: "kill_cropless"}

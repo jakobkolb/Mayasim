@@ -491,9 +491,13 @@ class ModelCore(Parameters):
                           for c, p in enumerate(self.population)]
         # occupied_cells is a mask of all occupied cells calculated as the
         # unification of the cropped cells of all settlements.
-        if self.debug:
-            print(np.shape(self.occupied_cells))
-        occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
+
+        try:
+            occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
+        except ValueError:
+            print(self.cropped_cells)
+            print('ERROR in occup')
+
         for index in range(len(occup[0])):
             self.occupied_cells[occup[0, index], occup[1, index]] = 1
         # the age of settlements is increased here.
@@ -730,7 +734,11 @@ class ModelCore(Parameters):
                 # if there are traders nearby,
                 # connect to the one with highest population
                 if sum(nearby) != 0:
-                    new_partner = np.nanargmax(self.population*nearby)
+                    try:
+                        new_partner = np.nanargmax(self.population*nearby)
+                    except ValueError:
+                        print(self.population, nearby)
+                        print('ERROR in new partner')
                     self.adjacency[city, new_partner] =\
                         self.adjacency[new_partner, city] = 1
         return
