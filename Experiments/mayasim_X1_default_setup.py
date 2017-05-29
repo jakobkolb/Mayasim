@@ -23,7 +23,7 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 test = True
 
 
-def run_function(N=30, steps=350, filename='./'):
+def run_function(N=30, kill_cropless=False, steps=350, filename='./'):
     """
     Set up the Model for default Parameters and determine
     which parts of the output are saved where.
@@ -35,6 +35,8 @@ def run_function(N=30, steps=350, filename='./'):
     -----------
     N : int > 0
         initial number of settlements on the map,
+    kill_cropless: bool
+        switch to either kill settlements without crops or not
     steps: int
         number of steps to integrate the model for,
     filename: string
@@ -44,6 +46,8 @@ def run_function(N=30, steps=350, filename='./'):
     # initialize the Model
 
     m = Model(N, output_data_location=filename, debug=test)
+
+    m.kill_cities_without_crops = kill_cropless
 
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
@@ -135,11 +139,11 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "N"}
+    index = {0: "kill_cropless"}
 
-    n = [30]
+    kill_cropless = [True, False]
 
-    param_combs = list(it.product(n))
+    param_combs = list(it.product(kill_cropless))
 
     sample_size = 10 if not test else 2
 

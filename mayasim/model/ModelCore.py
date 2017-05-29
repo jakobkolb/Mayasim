@@ -12,6 +12,7 @@ import scipy.sparse as sparse
 from itertools import compress
 import pandas
 import pkg_resources
+import networkx as nx
 
 from .f90routines import f90routines
 from .ModelParameters import ModelParameters as Parameters
@@ -59,6 +60,9 @@ class ModelCore(Parameters):
 
         # Debugging settings
         self.debug = debug
+        if debug:
+            self.min_init_inhabitants = 3000
+            self.max_init_inhabitants = 20000
 
         # In debug mode, allways print stack for warnings and errors.
         def warn_with_traceback(message, category, filename, lineno, file=None,
@@ -489,17 +493,17 @@ class ModelCore(Parameters):
                 self.number_cropped_cells[c] * self.area)
                           if self.number_cropped_cells[c] > 0 else 0.
                           for c, p in enumerate(self.population)]
+
         # occupied_cells is a mask of all occupied cells calculated as the
         # unification of the cropped cells of all settlements.
-
-        try:
+        if len(self.cropped_cells) > 0:
             occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
-        except ValueError:
-            print(self.cropped_cells)
-            print('ERROR in occup')
-
-        for index in range(len(occup[0])):
-            self.occupied_cells[occup[0, index], occup[1, index]] = 1
+            if self.debug:
+                print('population of cities without agriculture:')
+                print(np.array(self.population)[self.number_cropped_cells == 0])
+                print(len(self.population), len(self.eco_benefit))
+            for index in range(len(occup[0])):
+                self.occupied_cells[occup[0, index], occup[1, index]] = 1
         # the age of settlements is increased here.
         self.age = [x+1 for x in self.age]
         # for each settlement: which cells to crop ?
@@ -694,18 +698,22 @@ class ModelCore(Parameters):
         # depending on population ranks are assigned
         # attention: ranks are reverted with respect to Netlogo MayaSim !
         # 1 => 3 ; 2 => 2 ; 3 => 1 
-        self.rank = [1 if value > self.thresh_rank_1 else
+        self.rank = [3 if value > self.thresh_rank_3 else
                      2 if value > self.thresh_rank_2 else
-                     3 if value > self.thresh_rank_3 else
+                     1 if value > self.thresh_rank_1 else
                      0 for index, value in enumerate(self.population)]
         return
 
     @property
     def build_routes(self):
+
+        adj = self.adjacency
+        adj[adj == -1] = 0
+        g = nx.from_numpy_matrix(adj, create_using=nx.DiGraph())
+        self.degree = g.out_degree()
         # cities with rank>0 are traders and establish links to neighbours
         for city in self.populated_cities:
-            if (self.rank[city] != 0
-                    and self.degree[city] <= self.rank[city]):
+            if self.degree[city] <= self.rank[city]:
                 distances =\
                     (np.sqrt(self.area*(+ (self.settlement_positions[0][city]
                                            - self.settlement_positions[0])**2
@@ -736,19 +744,31 @@ class ModelCore(Parameters):
                 if sum(nearby) != 0:
                     try:
                         new_partner = np.nanargmax(self.population*nearby)
-                        self.adjacency[city, new_partner] = \
-                            self.adjacency[new_partner, city] = 1
+                        self.adjacency[city, new_partner] = 1
+                        self.adjacency[new_partner, city] = -1
                     except ValueError:
                         print('ERROR in new partner')
                         print(np.shape(self.population),
                               np.shape(self.settlement_positions[0]))
                         sys.exit(-1)
 
+            # cities who cant maintain their trade links, loose them:
+            elif self.degree[city] > self.rank[city]:
+                # get neighbors of node
+                neighbors = g.successors(city)
+                # find smallest of neighbors
+                smallest_neighbor = self.population.index(
+                    min([self.population[nb] for nb in neighbors]))
+                print(city, smallest_neighbor)
+                # cut link with him
+                self.adjacency[city, smallest_neighbor] = 0
+                self.adjacency[smallest_neighbor, city] = 0
+
         return
 
     def get_comps(self): 
         # convert adjacency matrix to compressed sparse row format
-        adjacency_csr = sparse.csr_matrix(self.adjacency)
+        adjacency_csr = sparse.csr_matrix(np.absolute(self.adjacency))
 
         # extract data vector, row index vector and index pointer vector
         a = adjacency_csr.data
@@ -775,7 +795,7 @@ class ModelCore(Parameters):
 
     def get_centrality(self):
         # convert adjacency matrix to compressed sparse row format
-        adjacency_csr = sparse.csr_matrix(self.adjacency)
+        adjacency_csr = sparse.csr_matrix(np.absolute(self.adjacency))
 
         # extract data vector, row index vector and index pointer vector
         a = adjacency_csr.data
@@ -832,7 +852,10 @@ class ModelCore(Parameters):
                 self.eco_benefit[city] = \
                     self.r_es_sum \
                     * np.nansum(es[self.cells_in_influence[city]])
-        self.eco_benefit[self.population == 0] = 0
+        try:
+            self.eco_benefit[self.population == 0] = 0
+        except IndexError:
+            self.print_variable_lengths()
 # ##EQUATION###################################################################
         return
 
@@ -1040,7 +1063,7 @@ class ModelCore(Parameters):
         while t <= t_max:
             t += 1
             if self.debug:
-                print ("time = ", t)
+                print("time = ", t)
 
             # evolve subselfs
             # ecosystem
@@ -1055,21 +1078,24 @@ class ModelCore(Parameters):
             bca = self.benefit_cost(ag)
 
             # society
-            self.get_cells_in_influence()
-            abandoned, sown = self.get_cropped_cells(bca)
-            self.get_crop_income(bca)
-            self.get_eco_income(es)
-            self.evolve_soil_deg()
-            self.update_pop_gradient()
-            self.get_rank()
-            cl = self.build_routes
-            self.get_comps()
-            self.get_centrality()
-            self.get_trade_income()
-            self.get_real_income_pc()
-            self.get_pop_mig()
-            self.migration(es)
-            self.kill_cities()
+            if len(self.population) > 0:
+                self.get_cells_in_influence()
+                abandoned, sown = self.get_cropped_cells(bca)
+                self.get_crop_income(bca)
+                self.get_eco_income(es)
+                self.evolve_soil_deg()
+                self.update_pop_gradient()
+                self.get_rank()
+                cl = self.build_routes
+                self.get_comps()
+                self.get_centrality()
+                self.get_trade_income()
+                self.get_real_income_pc()
+                self.get_pop_mig()
+                self.migration(es)
+                self.kill_cities()
+            else:
+                abandoned = sown = cl = 0
 
             self.step_output(t, npp, wf, ag, es, bca,
                              abandoned, sown)
@@ -1282,8 +1308,9 @@ class ModelCore(Parameters):
 
         return df
 
-    def run_test(self):
+    def run_test(self, timesteps=5):
         import matplotlib.pyplot as plt
+        import shutil
 
         N = 50
 
@@ -1292,6 +1319,8 @@ class ModelCore(Parameters):
         now = datetime.datetime.now()
         location = "output_data/" \
                    + "Output_" + comment + '/'
+        if os.path.exists(location):
+            shutil.rmtree(location)
         os.makedirs(location)
 
         # initialize Model
@@ -1301,7 +1330,7 @@ class ModelCore(Parameters):
                           output_geographic_data=True,
                           output_data_location=location)
         # run Model
-        timesteps = 5
+
         model.crop_income_mode = 'sum'
         model.r_es_sum = 0.0001
         model.r_bca_sum = 0.1
@@ -1315,9 +1344,20 @@ class ModelCore(Parameters):
 
         return 1
 
+    def print_variable_lengths(self):
+        for var in dir(self):
+            if not var.startswith('__') and not callable(getattr(self, var)):
+                try:
+                    if len(getattr(self, var)) != 432:
+                        print(var, len(getattr(self, var)))
+                except:
+                    pass
+
+
 if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
+    import shutil
 
     N = 50
 
@@ -1326,7 +1366,9 @@ if __name__ == "__main__":
     now = datetime.datetime.now()
     location = "output_data/" \
                + "Output_" + comment + '/'
-    os.makedirs(location)
+    if os.path.exists(location):
+        shutil.rmtree(location)
+    # os.makedirs(location)
 
     # initialize Model
     model = ModelCore(n=N, debug=True,

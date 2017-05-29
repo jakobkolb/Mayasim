@@ -93,9 +93,9 @@ class ModelParameters(object):
 
     # WEIGHTS FOR INCOME CALCULATION
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
-    r_bca_sum = 0.25  # 0.16- weight agriculture income for sum calculation
+    r_bca_sum = 0.1  # 0.16, 0.25- weight agriculture income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
-    r_es_sum = .0002     # 2.  - weight ecosystem services for sum calculation
+    r_es_sum = .0002     # 0.0002  - weight ecosystem services for sum calculation
     r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS

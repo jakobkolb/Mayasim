@@ -183,7 +183,10 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "r_bca", 1: "r_eco", 2: "kill_cropless"}
+    index = {0: "r_bca",
+             1: "r_eco",
+             2: "kill_cropless"}
+
     if test == 0:
         r_bcas = [0.1, 0.15, 0.2, 0.25, 0.3]
         r_ecos = [0.0001, 0.00015, 0.0002, 0.00025]
@@ -201,7 +204,7 @@ def run_experiment(argv):
 
     # Define names and callables for post processing
 
-    name = "mayasim_ensemble_testing"
+    name = "trajectory"
 
     estimators = {"<mean_trajectories>":
                       lambda fnames:
@@ -224,6 +227,10 @@ def run_experiment(argv):
 
     handle.compute(run_func=run_function)
     handle.resave(eva=estimators, name=name)
+
+    if test:
+        data = pd.read_pickle(save_path_res + name)
+        print(data.head())
 
     return 1
 

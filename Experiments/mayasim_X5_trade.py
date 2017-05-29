@@ -28,7 +28,7 @@ test = True
 
 
 def run_function(r_trade=6000., precip_amplitude=1.,
-                 n=30, kill_cities_without_cropps=False,
+                 n=30, kill_cropless=False,
                  steps=350, filename='./'):
     """Initializes and runs model and retrieves and saves data afterwards.
 
@@ -50,11 +50,14 @@ def run_function(r_trade=6000., precip_amplitude=1.,
 
     # Initialize Model
 
+    if test:
+        n = 500
     m = Model(n=n, output_data_location=filename, debug=test)
     m.r_trade = r_trade
     m.precipitation_amplitude = precip_amplitude
     m.output_level = 'trajectory'
-    m.kill_cities_without_crops = kill_cities_without_cropps
+    m.kill_cities_without_crops = kill_cropless
+
 
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
@@ -134,14 +137,15 @@ def run_experiment(argv):
         save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
-        save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
+        save_path_raw = "/home/jakob/Project_MayaSim/" \
                         "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
-        save_path_res = "/home/jakob/Project_MayaSim/Python/" \
+        save_path_res = "/home/jakob/Project_MayaSim/" \
                         "output_data/{}{}{}".format(test_folder, experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
+    name = "trajectory"
     estimators = {"<mean_trajectories>":
                   lambda fnames: pd.concat([np.load(f)["trajectory"]
                                             for f in fnames]).groupby(
@@ -162,10 +166,10 @@ def run_experiment(argv):
                                              r_trades,
                                              kill_cities))
 
-    name = "trade_income_transition"
+
     index = {0: 'precip_amplitude',
              1: 'r_trade',
-             2: 'kill_cities_without_cropps'}
+             2: 'kill_cropless'}
     sample_size = 10 if not test else 2
 
     h = handle(sample_size=sample_size,
@@ -177,6 +181,10 @@ def run_experiment(argv):
 
     h.compute(run_func=run_function)
     h.resave(eva=estimators, name=name)
+
+    if test:
+        data = pd.read_pickle(save_path_res + name)
+        print(data.head())
 
 
 if __name__ == "__main__":
