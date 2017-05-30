@@ -759,7 +759,6 @@ class ModelCore(Parameters):
                 # find smallest of neighbors
                 smallest_neighbor = self.population.index(
                     min([self.population[nb] for nb in neighbors]))
-                print(city, smallest_neighbor)
                 # cut link with him
                 self.adjacency[city, smallest_neighbor] = 0
                 self.adjacency[smallest_neighbor, city] = 0

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --qos=medium
+#SBATCH --qos=short
 #SBATCH --job-name=Maya_5
 #SBATCH --output=ms_x5_%j.out
 #SBATCH --error=ms_x5_%j.err
