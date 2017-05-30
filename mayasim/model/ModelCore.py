@@ -95,6 +95,7 @@ class ModelCore(Parameters):
                       + 'geographic_data_{0:03d}'.format(i)
 
         self.trajectory = []
+        self.traders_trajectory = []
 
         # *******************************************************************
         # MODEL DATA SOURCES
@@ -219,6 +220,7 @@ class ModelCore(Parameters):
                                                  n).astype(float))
         self.mig_rate = [0.] * n
         self.out_mig = [0] * n
+        self.migrants = [0] * n
         self.pioneer_set = []
         self.failed = 0
 
@@ -501,7 +503,9 @@ class ModelCore(Parameters):
             if self.debug:
                 print('population of cities without agriculture:')
                 print(np.array(self.population)[self.number_cropped_cells == 0])
-                print(len(self.population), len(self.eco_benefit))
+                print('out migration from cities without agriculture:')
+                print(np.array(self.migrants)[self.number_cropped_cells == 0])
+
             for index in range(len(occup[0])):
                 self.occupied_cells[occup[0, index], occup[1, index]] = 1
         # the age of settlements is increased here.
@@ -883,6 +887,7 @@ class ModelCore(Parameters):
 
     def migration(self, es):
         # if outmigration rate exceeds threshold, found new settlement
+        self.migrants = [0] * self.number_settlements
 
         vacant_lands = np.isfinite(es)
         influenced_cells = np.concatenate(self.cells_in_influence, axis=1)
@@ -890,10 +895,10 @@ class ModelCore(Parameters):
         vacant_lands = np.asarray(np.where(vacant_lands == 1))
         for city in self.populated_cities:
             if (self.out_mig[city] > 400
-                    and np.random.rand() <= 0.5
-                    and len(vacant_lands[0]) >= 75):
+                    and np.random.rand() <= 0.5):
 
                 mig_pop = self.out_mig[city]
+                self.migrants[city] = mig_pop
                 self.population[city] -= mig_pop
                 self.pioneer_set = \
                     vacant_lands[:, np.random.choice(len(vacant_lands[0]), 75)]
@@ -1104,6 +1109,7 @@ class ModelCore(Parameters):
 
         if self.output_trajectory:
             self.init_trajectory_output()
+            self.init_traders_trajectory_output()
 
         if self.output_geographic_data or self.output_settlement_data:
 
@@ -1150,6 +1156,7 @@ class ModelCore(Parameters):
         # append stuff to trajectory
         if self.output_trajectory:
             self.update_trajectory_output(t, [npp, wf, ag, es, bca])
+            self.update_traders_trajectory_output(t)
 
         # save maps of spatial data
         if self.output_geographic_data:
@@ -1176,14 +1183,18 @@ class ModelCore(Parameters):
                   'es income',
                   'trade income',
                   'x position',
-                  'y position']
+                  'y position',
+                  'out migration',
+                  'degree']
         data = [self.population,
                 self.real_income_pc,
                 self.crop_yield,
                 self.eco_benefit,
                 self.trade_income,
                 list(self.settlement_positions[0]),
-                list(self.settlement_positions[1])]
+                list(self.settlement_positions[1]),
+                self.migrants,
+                [self.degree[city] for city in self.populated_cities]]
 
         data = list(map(list, zip(*data)))
 
@@ -1240,6 +1251,7 @@ class ModelCore(Parameters):
     def init_trajectory_output(self):
         self.trajectory.append(['time',
                                 'total_population',
+                                'total_migrants',
                                 'total_settlements',
                                 'total_trade_links',
                                 'mean_cluster_size',
@@ -1258,10 +1270,23 @@ class ModelCore(Parameters):
                                 'max_soil_deg',
                                 'max_pop_grad'])
 
+    def init_traders_trajectory_output(self):
+        self.traders_trajectory.append(['time',
+                                'total_population',
+                                'total_migrants',
+                                'total_traders',
+                                'total_settlements',
+                                'total_trade_links',
+                                'total_income_agriculture',
+                                'total_income_ecosystem',
+                                'total_income_trade',
+                                'total_agriculture_cells'])
+
     def update_trajectory_output(self, time, args):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
+        total_migrangs = sum(self.migrants)
         total_settlements = len(self.population)
         total_trade_links = sum(self.degree)/2
         income_agriculture = sum(self.crop_yield)
@@ -1279,6 +1304,7 @@ class ModelCore(Parameters):
 
         self.trajectory.append([time,
                                 total_population,
+                                total_migrangs,
                                 total_settlements,
                                 total_trade_links,
                                 mean_cluster_size,
@@ -1297,9 +1323,54 @@ class ModelCore(Parameters):
                                 np.nanmax(self.soil_deg),
                                 np.nanmax(self.pop_gradient)])
 
+    def update_traders_trajectory_output(self, time):
+
+        traders = np.where(np.array(self.degree) > 0)[0]
+
+        total_population = sum([self.population[c] for c in traders])
+        total_migrants = sum([self.migrants[c] for c in traders])
+        total_settlements = len(self.population)
+        total_traders = len(traders)
+        total_trade_links = sum(self.degree) / 2
+        income_agriculture = sum([self.crop_yield[c] for c in traders])
+        income_ecosystem = sum([self.eco_benefit[c] for c in traders])
+        income_trade = sum([self.trade_income[c] for c in traders])
+        number_of_components = float(sum([1 if value > 0 else 0
+                                          for value in self.comp_size]))
+        mean_cluster_size = float(
+            sum(self.comp_size)) / number_of_components \
+            if number_of_components > 0 else 0
+        try:
+            max_cluster_size = max(self.comp_size)
+        except:
+            max_cluster_size = 0
+        total_agriculture_cells = \
+            sum([self.number_cropped_cells[c] for c in traders])
+
+        self.traders_trajectory.append([time,
+                                        total_population,
+                                        total_migrants,
+                                        total_traders,
+                                        total_settlements,
+                                        total_trade_links,
+                                        income_agriculture,
+                                        income_ecosystem,
+                                        income_trade,
+                                        total_agriculture_cells])
+
     def get_trajectory(self):
         try:
             trj = self.trajectory
+            columns = trj.pop(0)
+            df = pandas.DataFrame(trj, columns=columns)
+        except IOError:
+            print('trajectory mode must be turned on')
+
+        return df
+
+    def get_traders_trajectory(self):
+        try:
+            trj = self.traders_trajectory
             columns = trj.pop(0)
             df = pandas.DataFrame(trj, columns=columns)
         except IOError:

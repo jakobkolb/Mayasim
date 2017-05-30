@@ -76,6 +76,7 @@ def run_function(N=30, kill_cropless=False, steps=350, filename='./'):
     # Retrieve results
 
     res["trajectory"] = m.get_trajectory()
+    res["traders trajectory"] = m.get_traders_trajectory()
 
     try:
         with open(filename, 'wb') as dumpfile:
