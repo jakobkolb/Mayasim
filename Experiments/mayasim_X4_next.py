@@ -128,7 +128,7 @@ def run_experiment(argv):
         test = bool(int(argv[1]))
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X5_trade/'
+    experiment_folder = 'X4_next/'
     raw = 'raw_data/'
     res = 'results/'
 

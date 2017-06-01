@@ -249,6 +249,18 @@ class ModelCore(Parameters):
         self.eco_benefit = [0.] * n
         self.available = 0
 
+        # details of income from ecosystems services
+        self.s_es_ag = [0.] * n
+        self.s_es_wf = [0.] * n
+        self.s_es_fs = [0.] * n
+        self.s_es_sp = [0.] * n
+        self.s_es_pg = [0.] * n
+        self.es_ag = np.zeros((self.rows, self.columns), dtype=float)
+        self.es_wf =  np.zeros((self.rows, self.columns), dtype=float)
+        self.es_fs =  np.zeros((self.rows, self.columns), dtype=float)
+        self.es_sp =  np.zeros((self.rows, self.columns), dtype=float)
+        self.es_pg =  np.zeros((self.rows, self.columns), dtype=float)
+
         # Trade Variables
         self.adjacency = np.zeros((n, n))
         self.rank = [0] * n
@@ -433,9 +445,17 @@ class ModelCore(Parameters):
         to include population density (pop_gradient) and precipitation (rain)
         """
         # EQUATION ###########################################################
-        return self.e_ag*ag + self.e_wf*wf\
-            + self.e_f*(self.forest_state - 1.)
-        # + self.e_r*rain(t) - self.e_deg * pop_gradient
+
+        self.es_ag = self.e_ag*ag
+        self.es_wf = self.e_wf*wf
+        self.es_fs = self.e_f*(self.forest_state - 1.)
+        self.es_sp = self.e_r*self.spaciotemporal_precipitation
+        self.es_pg = self.e_deg * self.pop_gradient
+
+        return (self.es_ag + self.es_wf
+                + self.es_fs + self.es_sp
+                - self.es_pg)
+
         # EQUATION ###########################################################
 
 ######################################################################
@@ -844,17 +864,24 @@ class ModelCore(Parameters):
 
     def get_eco_income(self, es):
         # benefit from ecosystem services of cells in influence
-        # TO DO: calculate this as the sum of cell values too!!!
 # ##EQUATION###################################################################
         for city in self.populated_cities:
             if self.eco_income_mode == "mean":
-                self.eco_benefit[city] = \
-                    self.r_es_mean \
+                self.eco_benefit[city] = self.r_es_mean \
                     * np.nanmean(es[self.cells_in_influence[city]])
             elif self.eco_income_mode == "sum":
-                self.eco_benefit[city] = \
-                    self.r_es_sum \
+                self.eco_benefit[city] = self.r_es_sum \
                     * np.nansum(es[self.cells_in_influence[city]])
+                self.s_es_ag[city] = self.r_es_sum \
+                    * np.nanmean(self.es_ag[self.cells_in_influence[city]])
+                self.s_es_wf[city] = self.r_es_sum \
+                    * np.nanmean(self.es_wf[self.cells_in_influence[city]])
+                self.s_es_fs[city] = self.r_es_sum \
+                    * np.nanmean(self.es_fs[self.cells_in_influence[city]])
+                self.s_es_sp[city] = self.r_es_sum \
+                    * np.nanmean(self.es_sp[self.cells_in_influence[city]])
+                self.s_es_pg[city] = self.r_es_sum \
+                    * np.nanmean(self.es_pg[self.cells_in_influence[city]])
         try:
             self.eco_benefit[self.population == 0] = 0
         except IndexError:
@@ -971,6 +998,11 @@ class ModelCore(Parameters):
             del self.real_income_pc[index]
             del self.cells_in_influence[index]
             del self.cropped_cells[index]
+            del self.s_es_ag[index]
+            del self.s_es_wf[index]
+            del self.s_es_fs[index]
+            del self.s_es_sp[index]
+            del self.s_es_pg[index]
 
         # special cases:
         self.settlement_positions = \
@@ -1013,6 +1045,13 @@ class ModelCore(Parameters):
         self.number_settlements += 1
         self.settlement_positions = np.append(self.settlement_positions,
                                               [[x], [y]], 1)
+        self.cells_in_influence.append([[x], [y]])
+        self.cropped_cells.append([[x], [y]])
+
+        n = len(self.adjacency)
+        self.adjacency = np.append(self.adjacency, [[0] * n], 0)
+        self.adjacency = np.append(self.adjacency, [[0]] * (n + 1), 1)
+
         self.age.append(0)
         self.birth_rate.append(self.birth_rate_parameter)
         self.death_rate.append(0.1 + 0.05 * np.random.rand())
@@ -1021,18 +1060,19 @@ class ModelCore(Parameters):
         self.out_mig.append(0)
         self.number_cells_in_influence.append(0)
         self.area_of_influence.append(0)
-        self.cells_in_influence.append([[x], [y]])
-        self.cropped_cells.append([[x], [y]])
         self.number_cropped_cells.append(1)
         self.crop_yield.append(0)
         self.eco_benefit.append(0)
         self.rank.append(0)
-        n = len(self.adjacency)
-        self.adjacency = np.append(self.adjacency, [[0] * n], 0)
-        self.adjacency = np.append(self.adjacency, [[0]] * (n + 1), 1)
         self.degree.append(0)
         self.trade_income.append(0)
         self.real_income_pc.append(0)
+        self.s_es_ag.append(0)
+        self.s_es_wf.append(0)
+        self.s_es_fs.append(0)
+        self.s_es_sp.append(0)
+        self.s_es_pg.append(0)
+
 
     def run(self, t_max=1):
         """
@@ -1261,9 +1301,17 @@ class ModelCore(Parameters):
                                 'total_income_trade',
                                 'total_agriculture_cells',
                                 'mean_soil_degradation',
+                                'forest_state_3_cells',
+                                'forest_state_2_cells',
+                                'forest_state_1_cells',
+                                'forst_income',
+                                'waterflow_income',
+                                'agricultural_productivity_income',
+                                'precipitation_income',
+                                'pop_density_income',
                                 'max_rain',
                                 'max_npp',
-                                'max_waterflow',
+                                'mean_waterflow',
                                 'max_AG',
                                 'max_ES',
                                 'max_bca',
@@ -1314,9 +1362,17 @@ class ModelCore(Parameters):
                                 income_trade,
                                 total_agriculture_cells,
                                 np.nanmean(self.soil_deg),
+                                np.sum(self.forest_state == 3),
+                                np.sum(self.forest_state == 2),
+                                np.sum(self.forest_state == 1),
+                                np.sum(self.s_es_fs),
+                                np.sum(self.s_es_wf),
+                                np.sum(self.s_es_ag),
+                                np.sum(self.s_es_sp),
+                                np.sum(self.s_es_pg),
                                 np.nanmax(self.precip),
                                 np.nanmax(args[0]),
-                                np.nanmax(args[1]),
+                                np.nanmean(args[1]),
                                 np.nanmax(args[2]),
                                 np.nanmax(args[3]),
                                 np.nanmax(args[4]),

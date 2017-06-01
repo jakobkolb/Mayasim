@@ -21,4 +21,4 @@ echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
 cd ../Experiments/
-srun -n $SLURM_NTASKS python mayasim_X7_scan_r_es_and_r_agg.py 0
+srun -n $SLURM_NTASKS python mayasim_X2_scan_r_es_and_r_agg.py 0

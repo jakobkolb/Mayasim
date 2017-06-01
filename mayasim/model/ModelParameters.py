@@ -35,7 +35,8 @@ class ModelParameters(object):
     # percentage of raindrops that is infitrated per iteration
     infitration = 0
     # Percentage of cells that receive raindrops 
-    # (might be redundant, have to look into that -- looked into that, proves to be useful now)
+    # (might be redundant, have to look into that
+    # -- looked into that, proves to be useful now)
     # speeds up water flow by approx. 1/precip_percent
     precip_percent = 0.25
 
@@ -79,9 +80,10 @@ class ModelParameters(object):
 
     # WEIGHTS FOR ECOSYSTEM SERVICES
     e_ag = 0.06  # weight for agricultural productivity
-    e_r = 0.     # rain not included in current netlogo version
     e_wf = 40.   # water flow
     e_f = 45.    # forest
+    e_r = 0.     # rainfall (not included in current netlogo version)
+    e_deg = 0.   # population density (not includet in current netlogo version)
 
     # *******************************************************************
     # SOCIO-ECONOMY
@@ -93,9 +95,9 @@ class ModelParameters(object):
 
     # WEIGHTS FOR INCOME CALCULATION
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
-    r_bca_sum = 0.1  # 0.16, 0.25- weight agriculture income for sum calculation
+    r_bca_sum = 0.1  # 0.16, 0.25- weight agr income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
-    r_es_sum = .0002     # 0.0002  - weight ecosystem services for sum calculation
+    r_es_sum = .0002     # 0.0002  - weight ecosys services for sum calculation
     r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS
