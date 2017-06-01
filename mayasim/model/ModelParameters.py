@@ -9,7 +9,7 @@ class ModelParameters(object):
     output_level = 'spatial'   # either 'spatial' or 'trajectory'
 
     # INITIAL NUMBER OF SETTLEMENTS
-    min_init_inhabitants = 1000	    # 1000
+    min_init_inhabitants = 1000	   # 1000
     max_init_inhabitants = 2000    # 2000
 
     timesteps = 325			# 325

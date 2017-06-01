@@ -51,7 +51,7 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Initialize Model
 
     if test:
-        n = 500
+        n = 100
     m = Model(n=n, output_data_location=filename, debug=test)
     m.r_trade = r_trade
     m.precipitation_amplitude = precip_amplitude
@@ -85,6 +85,7 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Save results
 
     res["trajectory"] = m.get_trajectory()
+    res["traders trajectory"] = m.get_traders_trajectory()
 
     try:
         with open(filename, 'wb') as dumpfile:
@@ -137,26 +138,42 @@ def run_experiment(argv):
         save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
-        save_path_raw = "/home/jakob/Project_MayaSim/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
-        save_path_res = "/home/jakob/Project_MayaSim/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+        save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, raw)
+        save_path_res = "/home/jakob/Project_MayaSim/Python/" \
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
-    name = "trajectory"
-    estimators = {"<mean_trajectories>":
+    name1 = "trajectory"
+    estimators1 = {"mean_trajectories":
                   lambda fnames: pd.concat([np.load(f)["trajectory"]
                                             for f in fnames]).groupby(
                       level=0).mean(),
-                  "<sigma_trajectories>":
+                  "sigma_trajectories":
                   lambda fnames: pd.concat([np.load(f)["trajectory"]
                                             for f in fnames]).groupby(
                           level=0).std()
                   }
+    name2 = "traders_trajectory"
+    estimators2 = {
+                  "mean_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).mean(),
+                  "sigma_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).std()
+                  }
 
-    precip_amplitudes = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.] \
+
+    precip_amplitudes = [0., 0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2.] \
         if not test else [0., 1.]
     r_trades = [3000., 4000., 5000., 6000., 7000., 8000., 9000., 10000.] \
         if not test else [6000., 8000.]
@@ -170,7 +187,7 @@ def run_experiment(argv):
     index = {0: 'precip_amplitude',
              1: 'r_trade',
              2: 'kill_cropless'}
-    sample_size = 10 if not test else 2
+    sample_size = 6 if not test else 2
 
     h = handle(sample_size=sample_size,
                parameter_combinations=parameter_combinations,
@@ -180,11 +197,15 @@ def run_experiment(argv):
                use_kwargs=True)
 
     h.compute(run_func=run_function)
-    h.resave(eva=estimators, name=name)
+    h.resave(eva=estimators1, name=name1)
+    h.resave(eva=estimators2, name=name2)
 
     if test:
-        data = pd.read_pickle(save_path_res + name)
+        data = pd.read_pickle(save_path_res + name1)
         print(data.head())
+        data = pd.read_pickle(save_path_res + name2)
+        print(data.head())
+        print(save_path_res)
 
 
 if __name__ == "__main__":

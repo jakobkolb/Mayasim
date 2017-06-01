@@ -78,8 +78,6 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
 
     # initialize the Model
 
-    print(r_bca, r_eco)
-
     m = Model(N, output_data_location=filename, debug=test)
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
@@ -116,6 +114,7 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
     # Retrieve results
 
     res["trajectory"] = m.get_trajectory()
+    res["traders trajectory"] = m.get_traders_trajectory()
 
     try:
         with open(filename, 'wb') as dumpfile:
@@ -204,16 +203,29 @@ def run_experiment(argv):
 
     # Define names and callables for post processing
 
-    name = "trajectory"
+    name1 = "trajectory"
 
-    estimators = {"<mean_trajectories>":
+    estimators1 = {"mean_trajectories":
                       lambda fnames:
                       pd.concat([np.load(f)["trajectory"]
                                  for f in fnames]).groupby(level=0).mean(),
-                  "<sigma_trajectories>":
+                  "sigma_trajectories":
                       lambda fnames:
                       pd.concat([np.load(f)["trajectory"]
                                  for f in fnames]).groupby(level=0).std()
+                  }
+    name2 = "traders_trajectory"
+    estimators2 = {
+                  "mean_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).mean(),
+                  "sigma_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).std()
                   }
 
     # Run computation and post processing.
@@ -226,10 +238,13 @@ def run_experiment(argv):
                 use_kwargs=True)
 
     handle.compute(run_func=run_function)
-    handle.resave(eva=estimators, name=name)
+    handle.resave(eva=estimators1, name=name1)
+    handle.resave(eva=estimators2, name=name2)
 
     if test:
-        data = pd.read_pickle(save_path_res + name)
+        data = pd.read_pickle(save_path_res + name1)
+        print(data.head())
+        data = pd.read_pickle(save_path_res + name2)
         print(data.head())
 
     return 1
