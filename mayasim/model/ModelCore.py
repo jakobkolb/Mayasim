@@ -1003,6 +1003,7 @@ class ModelCore(Parameters):
             del self.s_es_fs[index]
             del self.s_es_sp[index]
             del self.s_es_pg[index]
+            del self.migrants[index]
 
         # special cases:
         self.settlement_positions = \
@@ -1072,6 +1073,7 @@ class ModelCore(Parameters):
         self.s_es_fs.append(0)
         self.s_es_sp.append(0)
         self.s_es_pg.append(0)
+        self.migrants.append(0)
 
 
     def run(self, t_max=1):
