@@ -175,7 +175,6 @@ def run_experiment(argv):
 
     precip_amplitudes = [0., 0.5, 1., 1.5, 2.] \
         if not test else [0., 1.]
-    #r_trades = [5000., 6000., 7000., 8000., 9000., 10000.] \
     r_trades = [3000., 4000., 5000., 6000., 7000., 8000., 9000., 10000.] \
         if not test else [6000., 8000.]
     kill_cities = [True, False]
@@ -201,7 +200,7 @@ def run_experiment(argv):
     h.resave(eva=estimators1, name=name1)
     h.resave(eva=estimators2, name=name2)
 
-    if True:
+    if test:
         data = pd.read_pickle(save_path_res + name1)
         print(data.head())
         data = pd.read_pickle(save_path_res + name2)

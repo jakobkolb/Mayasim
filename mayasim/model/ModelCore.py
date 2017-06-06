@@ -1306,11 +1306,11 @@ class ModelCore(Parameters):
                                 'forest_state_3_cells',
                                 'forest_state_2_cells',
                                 'forest_state_1_cells',
-                                'forst_income',
-                                'waterflow_income',
-                                'agricultural_productivity_income',
-                                'precipitation_income',
-                                'pop_density_income',
+                                'es_income_forest',
+                                'es_income_waterflow',
+                                'es_income_agricultural_productivity',
+                                'es_income_precipitation',
+                                'es_income_pop_density',
                                 'max_rain',
                                 'max_npp',
                                 'mean_waterflow',
@@ -1330,6 +1330,11 @@ class ModelCore(Parameters):
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
+                                'es_income_forest',
+                                'es_income_waterflow',
+                                'es_income_agricultural_productivity',
+                                'es_income_precipitation',
+                                'es_income_pop_density',
                                 'total_agriculture_cells'])
 
     def update_trajectory_output(self, time, args):
@@ -1393,6 +1398,11 @@ class ModelCore(Parameters):
         income_agriculture = sum([self.crop_yield[c] for c in traders])
         income_ecosystem = sum([self.eco_benefit[c] for c in traders])
         income_trade = sum([self.trade_income[c] for c in traders])
+        income_es_fs = sum([self.s_es_fs[c] for c in traders])
+        income_es_wf = sum([self.s_es_wf[c] for c in traders])
+        income_es_ag = sum([self.s_es_ag[c] for c in traders])
+        income_es_sp = sum([self.s_es_sp[c] for c in traders])
+        income_es_pg = sum([self.s_es_pg[c] for c in traders])
         number_of_components = float(sum([1 if value > 0 else 0
                                           for value in self.comp_size]))
         mean_cluster_size = float(
@@ -1414,6 +1424,11 @@ class ModelCore(Parameters):
                                         income_agriculture,
                                         income_ecosystem,
                                         income_trade,
+                                        income_es_fs,
+                                        income_es_wf,
+                                        income_es_ag,
+                                        income_es_sp,
+                                        income_es_pg,
                                         total_agriculture_cells])
 
     def get_trajectory(self):

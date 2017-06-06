@@ -1,95 +1,86 @@
 """
-I want to know, if for increasing trade income, there is a transition to a
-complex society that can sustain itself.
-And I want to know, what happens at that transition. Does it shift, due to
-climate variability? Hypothesis: Yes, it does.
-
-Therefore, vary two parameters: r_trade and precipitation_amplitude
+I want to know, why the income from ecosystem services is so robust against the
+deterioration of the ecosystem.
+Therefore, run the model without killing settlements without agriculture and
+maybe mess with the parameters for different sources of income from
+ecosystem services.
 """
-
 from __future__ import print_function
-
+try:
+    import cPickle as cp
+except ImportError:
+    import pickle as cp
 import getpass
 import itertools as it
 import numpy as np
 import sys
-
 import pandas as pd
-try:
-    import cPickle as cP
-except ImportError:
-    import pickle as cP
 
-from pymofa.experiment_handling import experiment_handling as handle
+from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 
 test = True
 
 
-def run_function(r_trade=6000., precip_amplitude=1.,
-                 n=30, kill_cropless=False,
-                 steps=350, filename='./'):
-    """Initializes and runs model and retrieves and saves data afterwards.
+def run_function(N=30, kill_cropless=False, steps=350, filename='./'):
+    """
+    Set up the Model for default Parameters and determine
+    which parts of the output are saved where.
+    Output is saved in pickled dictionaries including the
+    initial values and Parameters, as well as the time
+    development of aggregated variables for each run.
 
-    Parameters
-    ----------
-    precip_amplitude: float
-        the prefactor to the precipitation modulation. 0. means no modulation
-        1. means original modulation >1. means amplified modulation.
-    r_trade: float
-        value of trade income
-    n: int
-        number of initial settlements
-    kill_cities_without_cropps: bool
-        switch to set whether or not to kill settlements without agriculture
+    Parameters:
+    -----------
+    N : int > 0
+        initial number of settlements on the map,
+    kill_cropless: bool
+        switch to either kill settlements without crops or not
     steps: int
-        number of steps to run the model
-    rf_filename: string
+        number of steps to integrate the model for,
+    filename: string
+        path to save the results to.
     """
 
-    # Initialize Model
+    # initialize the Model
 
-    if test:
-        n = 100
-    m = Model(n=n, output_data_location=filename, debug=test)
-    m.r_trade = r_trade
-    m.precipitation_amplitude = precip_amplitude
-    m.output_level = 'trajectory'
+    m = Model(N, output_data_location=filename, debug=test)
+
     m.kill_cities_without_crops = kill_cropless
-
 
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
         m.output_settlement_data = False
 
-    # Store initial conditions and parameters:
+    # store initial conditions and Parameters
 
     res = {"initials": pd.DataFrame({"Settlement X Possitions":
                                      m.settlement_positions[0],
                                      "Settlement Y Possitions":
                                      m.settlement_positions[1],
-                                     "Population": m.population}),
+                                     "Population":
+                                     m.population}),
            "Parameters": pd.Series({key: getattr(m, key)
                                     for key in dir(Parameters)
                                     if not key.startswith('__')
-                                    and not callable(key)})
-           }
+                                    and not callable(key)})}
 
-    # Run model
+    # run Model
 
     if test:
-        steps = 4
-    m.run(steps)
+        m.run(3)
+    else:
+        m.run(steps)
 
-    # Save results
+    # Retrieve results
 
     res["trajectory"] = m.get_trajectory()
     res["traders trajectory"] = m.get_traders_trajectory()
 
     try:
         with open(filename, 'wb') as dumpfile:
-            cP.dump(res, dumpfile)
+            cp.dump(res, dumpfile)
             return 1
     except IOError:
         return -1
@@ -127,8 +118,9 @@ def run_experiment(argv):
     if len(argv) > 1:
         test = bool(int(argv[1]))
 
+    # Generate paths according to switches and user name
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X4_next/'
+    experiment_folder = 'X4_es_income/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -147,6 +139,18 @@ def run_experiment(argv):
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
+
+    # Generate parameter combinations
+
+    index = {0: "kill_cropless"}
+
+    kill_cropless = [True, False]
+
+    param_combs = list(it.product(kill_cropless))
+
+    sample_size = 10 if not test else 2
+
+    # Define names and callables for post processing
 
     name1 = "trajectory"
     estimators1 = {"mean_trajectories":
@@ -173,42 +177,22 @@ def run_experiment(argv):
                   }
 
 
-    precip_amplitudes = [0., 0.5, 1., 1.5, 2.] \
-        if not test else [0., 1.]
-    #r_trades = [5000., 6000., 7000., 8000., 9000., 10000.] \
-    r_trades = [3000., 4000., 5000., 6000., 7000., 8000., 9000., 10000.] \
-        if not test else [6000., 8000.]
-    kill_cities = [True, False]
+    # Run computation and post processing.
 
-    parameter_combinations = list(it.product(precip_amplitudes,
-                                             r_trades,
-                                             kill_cities))
+    handle = eh(sample_size=sample_size,
+                parameter_combinations=param_combs,
+                index=index,
+                path_raw=save_path_raw,
+                path_res=save_path_res,
+                use_kwargs=True)
 
+    handle.compute(run_func=run_function)
+    handle.resave(eva=estimators1, name=name1)
+    handle.resave(eva=estimators2, name=name2)
 
-    index = {0: 'precip_amplitude',
-             1: 'r_trade',
-             2: 'kill_cropless'}
-    sample_size = 5 if not test else 2
-
-    h = handle(sample_size=sample_size,
-               parameter_combinations=parameter_combinations,
-               index=index,
-               path_raw=save_path_raw,
-               path_res=save_path_res,
-               use_kwargs=True)
-
-    h.compute(run_func=run_function)
-    h.resave(eva=estimators1, name=name1)
-    h.resave(eva=estimators2, name=name2)
-
-    if True:
-        data = pd.read_pickle(save_path_res + name1)
-        print(data.head())
-        data = pd.read_pickle(save_path_res + name2)
-        print(data.head())
-        print(save_path_res)
+    return 1
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     run_experiment(sys.argv)
