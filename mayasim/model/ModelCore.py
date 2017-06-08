@@ -446,11 +446,18 @@ class ModelCore(Parameters):
         """
         # EQUATION ###########################################################
 
-        self.es_ag = self.e_ag*ag
-        self.es_wf = self.e_wf*wf
-        self.es_fs = self.e_f*(self.forest_state - 1.)
-        self.es_sp = self.e_r*self.spaciotemporal_precipitation
-        self.es_pg = self.e_deg * self.pop_gradient
+        if self.better_ess:
+            self.es_ag = np.zeros(np.shape(ag))
+            self.es_wf = self.e_wf*wf
+            self.es_fs = self.e_ag*(self.forest_state - 1.) * ag
+            self.es_sp = self.e_r*self.spaciotemporal_precipitation
+            self.es_pg = self.e_deg * self.pop_gradient
+        else:
+            self.es_ag = self.e_ag*ag
+            self.es_wf = self.e_wf*wf
+            self.es_fs = self.e_f*(self.forest_state - 1.)
+            self.es_sp = self.e_r*self.spaciotemporal_precipitation
+            self.es_pg = self.e_deg * self.pop_gradient
 
         return (self.es_ag + self.es_wf
                 + self.es_fs + self.es_sp
@@ -1295,13 +1302,14 @@ class ModelCore(Parameters):
                                 'total_population',
                                 'total_migrants',
                                 'total_settlements',
+                                'total_agriculture_cells',
+                                'total_cells_in_influence',
                                 'total_trade_links',
                                 'mean_cluster_size',
                                 'max_cluster_size',
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
-                                'total_agriculture_cells',
                                 'mean_soil_degradation',
                                 'forest_state_3_cells',
                                 'forest_state_2_cells',
@@ -1322,20 +1330,21 @@ class ModelCore(Parameters):
 
     def init_traders_trajectory_output(self):
         self.traders_trajectory.append(['time',
-                                'total_population',
-                                'total_migrants',
-                                'total_traders',
-                                'total_settlements',
-                                'total_trade_links',
-                                'total_income_agriculture',
-                                'total_income_ecosystem',
-                                'total_income_trade',
-                                'es_income_forest',
-                                'es_income_waterflow',
-                                'es_income_agricultural_productivity',
-                                'es_income_precipitation',
-                                'es_income_pop_density',
-                                'total_agriculture_cells'])
+                                        'total_population',
+                                        'total_migrants',
+                                        'total_traders',
+                                        'total_settlements',
+                                        'total_agriculture_cells',
+                                        'total_cells_in_influence',
+                                        'total_trade_links',
+                                        'total_income_agriculture',
+                                        'total_income_ecosystem',
+                                        'total_income_trade',
+                                        'es_income_forest',
+                                        'es_income_waterflow',
+                                        'es_income_agricultural_productivity',
+                                        'es_income_precipitation',
+                                        'es_income_pop_density'])
 
     def update_trajectory_output(self, time, args):
         # args = [npp, wf, ag, es, bca]
@@ -1356,18 +1365,20 @@ class ModelCore(Parameters):
         except:
             max_cluster_size = 0
         total_agriculture_cells = sum(self.number_cropped_cells)
+        total_cells_in_influence = sum(self.number_cells_in_influence)
 
         self.trajectory.append([time,
                                 total_population,
                                 total_migrangs,
                                 total_settlements,
+                                total_agriculture_cells,
+                                total_cells_in_influence,
                                 total_trade_links,
                                 mean_cluster_size,
                                 max_cluster_size,
                                 income_agriculture,
                                 income_ecosystem,
                                 income_trade,
-                                total_agriculture_cells,
                                 np.nanmean(self.soil_deg),
                                 np.sum(self.forest_state == 3),
                                 np.sum(self.forest_state == 2),
@@ -1414,12 +1425,16 @@ class ModelCore(Parameters):
             max_cluster_size = 0
         total_agriculture_cells = \
             sum([self.number_cropped_cells[c] for c in traders])
+        total_cells_in_influence = \
+            sum([self.number_cells_in_influence[c] for c in traders])
 
         self.traders_trajectory.append([time,
                                         total_population,
                                         total_migrants,
                                         total_traders,
                                         total_settlements,
+                                        total_agriculture_cells,
+                                        total_cells_in_influence,
                                         total_trade_links,
                                         income_agriculture,
                                         income_ecosystem,
@@ -1428,8 +1443,7 @@ class ModelCore(Parameters):
                                         income_es_wf,
                                         income_es_ag,
                                         income_es_sp,
-                                        income_es_pg,
-                                        total_agriculture_cells])
+                                        income_es_pg])
 
     def get_trajectory(self):
         try:
