@@ -176,7 +176,7 @@ class ModelCore(Parameters):
         self.soil_deg = np.zeros((self.rows, self.columns))
 
         # Forest
-        self.forest_state = np.zeros((self.rows, self.columns), dtype=int)
+        self.forest_state = np.ones((self.rows, self.columns), dtype=int)
         self.forest_memory = np.zeros((self.rows, self.columns), dtype=int)
         self.cleared_land_neighbours = np.zeros((self.rows, self.columns),
                                                 dtype=int)
@@ -402,6 +402,8 @@ class ModelCore(Parameters):
                 self.cleared_land_neighbours[i] =\
                         np.sum(self.forest_state[i[0]-1:i[0]+2,
                                                  i[1]-1:i[1]+2] == 1)
+        assert not np.any(self.forest_state < 1), \
+            'forest state is smaller than 1 somewhere'
 
         return
 
@@ -410,12 +412,11 @@ class ModelCore(Parameters):
         net_primaty_prod is the minimum of a quantity
         derived from local temperature and rain
         Why is it rain and not 'surface water'
-        according to the waterflow model??
+        according to the waterflow model?
         """
         # EQUATION ############################################################
         npp = 3000\
-            * np.minimum(1
-                         - np.exp(-6.64e-4
+            * np.minimum(1 - np.exp(-6.64e-4
                                   * self.spaciotemporal_precipitation),
                          1./(1+np.exp(1.315-(0.119 * self.temp))))
         # EQUATION ############################################################
@@ -880,15 +881,15 @@ class ModelCore(Parameters):
                 self.eco_benefit[city] = self.r_es_sum \
                     * np.nansum(es[self.cells_in_influence[city]])
                 self.s_es_ag[city] = self.r_es_sum \
-                    * np.nanmean(self.es_ag[self.cells_in_influence[city]])
+                    * np.nansum(self.es_ag[self.cells_in_influence[city]])
                 self.s_es_wf[city] = self.r_es_sum \
-                    * np.nanmean(self.es_wf[self.cells_in_influence[city]])
+                    * np.nansum(self.es_wf[self.cells_in_influence[city]])
                 self.s_es_fs[city] = self.r_es_sum \
-                    * np.nanmean(self.es_fs[self.cells_in_influence[city]])
+                    * np.nansum(self.es_fs[self.cells_in_influence[city]])
                 self.s_es_sp[city] = self.r_es_sum \
-                    * np.nanmean(self.es_sp[self.cells_in_influence[city]])
+                    * np.nansum(self.es_sp[self.cells_in_influence[city]])
                 self.s_es_pg[city] = self.r_es_sum \
-                    * np.nanmean(self.es_pg[self.cells_in_influence[city]])
+                    * np.nansum(self.es_pg[self.cells_in_influence[city]])
         try:
             self.eco_benefit[self.population == 0] = 0
         except IndexError:
