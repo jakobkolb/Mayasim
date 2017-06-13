@@ -447,18 +447,23 @@ class ModelCore(Parameters):
         """
         # EQUATION ###########################################################
 
-        if self.better_ess:
-            self.es_ag = np.zeros(np.shape(ag))
-            self.es_wf = self.e_wf*wf
-            self.es_fs = self.e_ag*(self.forest_state - 1.) * ag
-            self.es_sp = self.e_r*self.spaciotemporal_precipitation
-            self.es_pg = self.e_deg * self.pop_gradient
-        else:
+        if not self.better_ess:
             self.es_ag = self.e_ag*ag
             self.es_wf = self.e_wf*wf
             self.es_fs = self.e_f*(self.forest_state - 1.)
             self.es_sp = self.e_r*self.spaciotemporal_precipitation
             self.es_pg = self.e_deg * self.pop_gradient
+        else:
+            # change to use forest as proxy for income from agricultural
+            # productivity. Multiply by 2 to get same per cell levels as
+            # before
+            self.es_ag = np.zeros(np.shape(ag))
+            self.es_wf = self.e_wf * wf
+            self.es_fs = 2. * self.e_ag * (self.forest_state - 1.) * ag
+            self.es_sp = self.e_r * self.spaciotemporal_precipitation
+            self.es_pg = self.e_deg * self.pop_gradient
+
+
 
         return (self.es_ag + self.es_wf
                 + self.es_fs + self.es_sp
