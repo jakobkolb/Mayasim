@@ -173,9 +173,12 @@ def run_experiment(argv):
                           level=0).std()
                   }
 
-
-    precip_amplitudes = [0., 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4.] \
+    # "precipitation_variation" is within the range of [-0.18, 0.06]
+    # zero rain at some point would therefore imply a precipitation
+    # amplitude of 5.55.
+    precip_amplitudes = [0., 1., 2., 3., 4., 5.] \
         if not test else [0., 1.]
+    # default r_trade is 6000.
     r_trades = [3000., 4000., 5000., 6000., 7000., 8000., 9000., 10000.] \
         if not test else [6000., 8000.]
     kill_cities = [True, False]
