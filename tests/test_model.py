@@ -1,6 +1,6 @@
 """
-test script for the model itself. 
-Just checking whether it runs without 
+test script for the model itself.
+Just checking whether it runs without
 errors, no sanity check so far
 """
 

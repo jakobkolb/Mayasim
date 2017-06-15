@@ -1,4 +1,5 @@
-"""this is the test file for X5 the experiment concerning the influence of trade income"""
+"""this is the test file for X5 the experiment
+concerning the influence of trade income"""
 
 from Experiments import mayasim_X3_trade as X3
 

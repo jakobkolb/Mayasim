@@ -171,9 +171,11 @@ def run_experiment(argv):
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
         save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, raw)
         save_path_res = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
@@ -255,4 +257,3 @@ def run_experiment(argv):
 if __name__ == '__main__':
 
     run_experiment(sys.argv)
-
