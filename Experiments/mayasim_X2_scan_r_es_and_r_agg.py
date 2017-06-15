@@ -107,7 +107,7 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
     # run Model
 
     if test:
-        m.run(3)
+        m.run(1)
     else:
         m.run(steps)
 
@@ -230,6 +230,8 @@ def run_experiment(argv):
 
     # Run computation and post processing.
 
+    if test:
+        print('testing {}'.format(experiment_folder))
     handle = eh(sample_size=sample_size,
                 parameter_combinations=param_combs,
                 index=index,

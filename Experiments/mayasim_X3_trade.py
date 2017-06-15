@@ -79,7 +79,7 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Run model
 
     if test:
-        steps = 4
+        steps = 1
     m.run(steps)
 
     # Save results
@@ -189,6 +189,8 @@ def run_experiment(argv):
              2: 'kill_cropless'}
     sample_size = 5 if not test else 2
 
+    if test:
+        print('testing {}'.format(experiment_folder))
     h = handle(sample_size=sample_size,
                parameter_combinations=parameter_combinations,
                index=index,
@@ -206,6 +208,8 @@ def run_experiment(argv):
         data = pd.read_pickle(save_path_res + name2)
         print(data.head())
         print(save_path_res)
+
+    return 1
 
 
 if __name__ == "__main__":

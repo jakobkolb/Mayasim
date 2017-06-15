@@ -1502,7 +1502,6 @@ class ModelCore(Parameters):
 
         trj = model.get_trajectory()
         plot = trj.plot()
-        plt.show()
         plt.savefig(plot, location + 'plot')
 
         return 1
