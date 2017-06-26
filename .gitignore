@@ -5,3 +5,6 @@
 *.so
 *.pyc
 *.pkl
+output_data/
+.*
+*.egg-info/
