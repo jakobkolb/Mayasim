@@ -294,6 +294,9 @@ class ModelCore(Parameters):
             self.spaciotemporal_precipitation = \
                 self.precip*(1 -
                              self.veg_rainfall*self.cleared_land_neighbours)
+        if t > self.drought_start and t < self.drought_start + self.drought_length:
+            self.spaciotemporal_precipitation = \
+                (1. - self.drought_severity/100.) * self.spaciotemporal_precipitation
         # EQUATION ###########################################################
 
     def get_waterflow(self):
