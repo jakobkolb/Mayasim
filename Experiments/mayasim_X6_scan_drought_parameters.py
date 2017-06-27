@@ -1,8 +1,14 @@
-"""Experiment to test the influence of drought events.
+"""
+Experiment to test the influence of drought events.
 Drought events start once the civilisation has reached
 a 'complex society' state and vary in length and severity.
 
-Therefore, starting point is at t = 150
+Therefore, starting point is at t = 150 where the model has
+reached a complex society state in all previous studies.
+We also use parameters for income from trade, agriculture and
+ecosystem services, that have previously proven to lead to
+some influence of precipitation variability on the state of the
+system.
 """
 
 from __future__ import print_function
@@ -23,7 +29,8 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 test = True
 
 
-def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
+def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
+                 <population_control=False,
                  N=30, crop_income_mode='sum',
                  kill_cropless=True, steps=350, filename='./'):
     """
