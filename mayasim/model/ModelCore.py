@@ -749,6 +749,8 @@ class ModelCore(Parameters):
 
         adj = self.adjacency
         adj[adj == -1] = 0
+        built_links = 0
+        lost_links = 0
         g = nx.from_numpy_matrix(adj, create_using=nx.DiGraph())
         self.degree = g.out_degree()
         # cities with rank>0 are traders and establish links to neighbours
@@ -786,6 +788,7 @@ class ModelCore(Parameters):
                         new_partner = np.nanargmax(self.population*nearby)
                         self.adjacency[city, new_partner] = 1
                         self.adjacency[new_partner, city] = -1
+                        built_links += 1
                     except ValueError:
                         print('ERROR in new partner')
                         print(np.shape(self.population),
@@ -802,8 +805,9 @@ class ModelCore(Parameters):
                 # cut link with him
                 self.adjacency[city, smallest_neighbor] = 0
                 self.adjacency[smallest_neighbor, city] = 0
+                lost_links += 1
 
-        return
+        return (built_links, lost_links)
 
     def get_comps(self): 
         # convert adjacency matrix to compressed sparse row format
@@ -1148,7 +1152,7 @@ class ModelCore(Parameters):
                 self.evolve_soil_deg()
                 self.update_pop_gradient()
                 self.get_rank()
-                cl = self.build_routes
+                (built, lost) = self.build_routes
                 self.get_comps()
                 self.get_centrality()
                 self.get_trade_income()
@@ -1160,7 +1164,7 @@ class ModelCore(Parameters):
                 abandoned = sown = cl = 0
 
             self.step_output(t, npp, wf, ag, es, bca,
-                             abandoned, sown)
+                             abandoned, sown, built, lost)
 
     def init_output(self):
         """initializes data output for trajectory, settlements and geography depending on settings"""
@@ -1186,7 +1190,7 @@ class ModelCore(Parameters):
         if self.output_geographic_data:
             pass
 
-    def step_output(self, t, npp, wf, ag, es, bca, abandoned, sown):
+    def step_output(self, t, npp, wf, ag, es, bca, abandoned, sown, built, lost):
         """
         call different data saving routines depending on settings.
 
@@ -1209,16 +1213,22 @@ class ModelCore(Parameters):
             Number of cells that was abandoned in the previous time step
         sown: int
             Number of cells that was newly cropped in the previous time step
+        built : int
+            number of trade links built in this timestep
+        lost : int
+            number of trade links lost in this timestep
         """
 
         # append stuff to trajectory
         if self.output_trajectory:
-            self.update_trajectory_output(t, [npp, wf, ag, es, bca])
+            self.update_trajectory_output(t, [npp, wf, ag, es, bca],
+                                          built, lost)
             self.update_traders_trajectory_output(t)
 
         # save maps of spatial data
         if self.output_geographic_data:
-            self.save_geographic_output(t, npp, wf, ag, es, bca, abandoned, sown)
+            self.save_geographic_output(t, npp, wf, ag, es, bca,
+                                        abandoned, sown)
 
         # save data on settlement basis
         if self.output_settlement_data:
@@ -1316,6 +1326,8 @@ class ModelCore(Parameters):
                                 'total_trade_links',
                                 'mean_cluster_size',
                                 'max_cluster_size',
+                                'built trade links',
+                                'lost trade links',
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
@@ -1355,7 +1367,7 @@ class ModelCore(Parameters):
                                         'es_income_precipitation',
                                         'es_income_pop_density'])
 
-    def update_trajectory_output(self, time, args):
+    def update_trajectory_output(self, time, args, built, lost):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
@@ -1385,6 +1397,8 @@ class ModelCore(Parameters):
                                 total_trade_links,
                                 mean_cluster_size,
                                 max_cluster_size,
+                                built,
+                                lost,
                                 income_agriculture,
                                 income_ecosystem,
                                 income_trade,

@@ -28,11 +28,12 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 
 test = True
 
-
-def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
-                 <population_control=False,
+def run_function(d_start=150, d_lenth=20, d_severity=50.,
+                 r_bca=0.2, r_es=0.0002, r_trade=6000,
+                 population_control=False,
                  N=30, crop_income_mode='sum',
-                 kill_cropless=True, steps=350, filename='./'):
+                 better_ess=True,
+                 kill_cropless=False, steps=350, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -42,8 +43,18 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
 
     Parameters:
     -----------
+    d_start : int
+        starting point of drought in model time
+    d_length : int
+        length of drought in timesteps
+    d_severity : float
+        severity of drought (decrease in rainfall in percent)
     r_bca : float > 0
-        the pre factor for income from agriculture
+        the prefactor for income from agriculture
+    r_es : float
+        the prefactor for income from ecosystem services
+    r_trade : float
+        the prefactor for income from trade
     population_control : boolean
         determines whether the population grows
         unbounded or if population growth decreases
@@ -53,6 +64,9 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
     crop_income_mode : string
         defines the mode of crop income calculation.
         possible values are 'sum' and 'mean'
+    better_ess : bool
+        switch to use forest as proxy for income from eco
+        system services from net primary productivity.
     kill_cropless: bool
         Switch to determine whether or not to kill cities
         without cropped cells.
@@ -69,9 +83,15 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
 
     m.population_control = population_control
     m.crop_income_mode = crop_income_mode
+    m.better_ess = better_ess
     m.r_bca_sum = r_bca
-    m.r_es_sum = r_eco
+    m.r_es_sum = r_es
+    m.r_trade = r_trade
     m.kill_cities_without_crops = kill_cropless
+
+    m.drought_start = d_start
+    m.drought_length = d_lenth
+    m.drought_severity = d_severity
 
     # store initial conditions and Parameters
 
