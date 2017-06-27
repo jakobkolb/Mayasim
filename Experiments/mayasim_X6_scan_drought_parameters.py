@@ -28,10 +28,11 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 
 test = True
 
-def run_function(d_start=150, d_lenth=20, d_severity=50.,
+
+def run_function(d_start=150, d_length=20, d_severity=50.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
-                 N=30, crop_income_mode='sum',
+                 n=30, crop_income_mode='sum',
                  better_ess=True,
                  kill_cropless=False, steps=350, filename='./'):
     """
@@ -59,7 +60,7 @@ def run_function(d_start=150, d_lenth=20, d_severity=50.,
         determines whether the population grows
         unbounded or if population growth decreases
         with income per capita and population density.
-    N : int > 0
+    n : int > 0
         initial number of settlements on the map
     crop_income_mode : string
         defines the mode of crop income calculation.
@@ -76,7 +77,7 @@ def run_function(d_start=150, d_lenth=20, d_severity=50.,
 
     # initialize the Model
 
-    m = Model(N, output_data_location=filename, debug=test)
+    m = Model(n, output_data_location=filename, debug=test)
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
         m.output_settlement_data = False
@@ -89,24 +90,22 @@ def run_function(d_start=150, d_lenth=20, d_severity=50.,
     m.r_trade = r_trade
     m.kill_cities_without_crops = kill_cropless
 
+    m.precipitation_modulation = False
     m.drought_start = d_start
-    m.drought_length = d_lenth
+    m.drought_length = d_length
     m.drought_severity = d_severity
 
     # store initial conditions and Parameters
 
-    res = {}
-    res["initials"] = pd.DataFrame({"Settlement X Possitions":
-                                    m.settlement_positions[0],
-                                    "Settlement Y Possitions":
-                                    m.settlement_positions[1],
-                                    "Population": m.population})
-
-    res["Parameters"] = pd.Series({key:
-                                   getattr(m, key)
-                                   for key in dir(Parameters)
-                                   if not key.startswith('__')
-                                   and not callable(key)})
+    res = {"initials": pd.DataFrame({"Settlement X Possitions":
+                                     m.settlement_positions[0],
+                                     "Settlement Y Possitions":
+                                     m.settlement_positions[1],
+                                     "Population": m.population}),
+           "Parameters": pd.Series({key: getattr(m, key)
+                                    for key in dir(Parameters)
+                                    if not key.startswith('__')
+                                    and not callable(key)})}
 
     # run Model
 
@@ -159,11 +158,10 @@ def run_experiment(argv):
     if len(argv) > 1:
         test = int(argv[1])
 
-
     # Generate paths according to switches and user name
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X7_eco_income/'
+    experiment_folder = 'X6_drought_parameter_scan/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -173,29 +171,31 @@ def run_experiment(argv):
         save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
-        save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
-        save_path_res = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+        save_path_raw = \
+            "/home/jakob/Project_MayaSim/Python/" \
+            "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+        save_path_res = \
+            "/home/jakob/Project_MayaSim/Python/" \
+            "output_data/{}{}{}".format(test_folder, experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
     # Generate parameter combinations
 
-    index = {0: "r_bca", 1: "r_eco", 2: "kill_cropless"}
+    index = {0: "d_length", 1: "d_severity", 2: "r_trade"}
     if test == 0:
-        r_bcas = [0.1, 0.15, 0.2, 0.25, 0.3]
-        r_ecos = [0.0001, 0.00015, 0.0002, 0.00025]
-        kill_cropless = [True, False]
-        test=False
-    if test == 1:
-        r_bcas = [0.1, 0.15]
-        r_ecos = [0.0001, 0.00015]
-        kill_cropless = [True, False]
-        test=True
+        d_length = [5, 10, 15, 20]
+        d_severity = [0., 10., 20., 30., 40., 50., 60.]
+        r_trade = [6000, 8000, 10000]
+        test = False
+    else:
+        d_length = [5]
+        d_severity = [0., 60.]
+        r_trade = [6000,]
+        test = True
 
-    param_combs = list(it.product(r_bcas, r_ecos, kill_cropless))
+    param_combs = list(it.product(d_length, d_severity, r_trade))
 
     sample_size = 10 if not test else 2
 
@@ -204,13 +204,13 @@ def run_experiment(argv):
     name = "mayasim_ensemble_testing"
 
     estimators = {"<mean_trajectories>":
-                      lambda fnames:
-                      pd.concat([np.load(f)["trajectory"]
-                                 for f in fnames]).groupby(level=0).mean(),
+                  lambda fnames:
+                  pd.concat([np.load(f)["trajectory"]
+                             for f in fnames]).groupby(level=0).mean(),
                   "<sigma_trajectories>":
-                      lambda fnames:
-                      pd.concat([np.load(f)["trajectory"]
-                                 for f in fnames]).groupby(level=0).std()
+                  lambda fnames:
+                  pd.concat([np.load(f)["trajectory"]
+                             for f in fnames]).groupby(level=0).std()
                   }
 
     # Run computation and post processing.
@@ -231,4 +231,3 @@ def run_experiment(argv):
 if __name__ == '__main__':
 
     run_experiment(sys.argv)
-
