@@ -201,7 +201,7 @@ def run_experiment(argv):
 
     # Define names and callables for post processing
 
-    name = "mayasim_ensemble_testing"
+    name = "trajectory"
 
     estimators = {"<mean_trajectories>":
                   lambda fnames:
