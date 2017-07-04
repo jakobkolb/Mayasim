@@ -107,7 +107,7 @@ def run_function(r_bca=0.2, r_eco=0.0002, population_control=False,
     # run Model
 
     if test:
-        m.run(3)
+        m.run(1)
     else:
         m.run(steps)
 
@@ -171,9 +171,11 @@ def run_experiment(argv):
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
         save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, raw)
         save_path_res = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
@@ -230,6 +232,8 @@ def run_experiment(argv):
 
     # Run computation and post processing.
 
+    if test:
+        print('testing {}'.format(experiment_folder))
     handle = eh(sample_size=sample_size,
                 parameter_combinations=param_combs,
                 index=index,
@@ -253,4 +257,3 @@ def run_experiment(argv):
 if __name__ == '__main__':
 
     run_experiment(sys.argv)
-

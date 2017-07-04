@@ -1,6 +1,6 @@
 """
-this is the test file for X4, the experiment that checks whether 
-climate variability actually matters for the overshoot and 
+this is the test file for X4, the experiment that checks whether
+climate variability actually matters for the overshoot and
 collapse pattern
 """
 
