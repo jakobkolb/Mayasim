@@ -30,7 +30,7 @@ test = True
 
 
 def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
-                 <population_control=False,
+                 population_control=False,
                  N=30, crop_income_mode='sum',
                  kill_cropless=True, steps=350, filename='./'):
     """
