@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --qos=medium
+#SBATCH --qos=short
 #SBATCH --job-name=Maya_6
 #SBATCH --output=ms_x6_%j.out
 #SBATCH --error=ms_x6_%j.err
 #SBATCH --account=copan
-#SBATCH --nodes=1
+#SBATCH --nodes=8
 #SBATCH --tasks-per-node=16
 
 module load compiler/intel/16.0.0
@@ -18,5 +18,5 @@ echo "SLURM JOB ID: $SLURM_JOBID"
 echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
-cd ../
-srun -n $SLURM_NTASKS python mayasim_X6_video.py 0
+cd ../Experiments/
+srun -n $SLURM_NTASKS python mayasim_X6_scan_drought_parameters.py 0
