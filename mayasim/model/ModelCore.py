@@ -306,7 +306,6 @@ class ModelCore(Parameters):
         compensate for agriculture decline
         """
 
-        # EQUATION ###########################################################
         if self.precipitation_modulation:
             self.spaciotemporal_precipitation =\
                 self.precip*(
@@ -318,10 +317,16 @@ class ModelCore(Parameters):
             self.spaciotemporal_precipitation = \
                 self.precip*(1 -
                              self.veg_rainfall*self.cleared_land_neighbours)
-        if t > self.drought_start and t < self.drought_start + self.drought_length:
-            self.spaciotemporal_precipitation = \
-                (1. - self.drought_severity/100.) * self.spaciotemporal_precipitation
-        # EQUATION ###########################################################
+        # check if system time is in drought period
+        drought = False
+        for drought_time in self.drought_times:
+            if t > drought_time[0] and t < drought_time[1]:
+                drought = True
+        # if so, decrease precipitation by factor percentage given by
+        # drought severity
+        if drought:
+            self.spaciotemporal_precipitation *= \
+                (1. - self.drought_severity / 100.)
 
     def get_waterflow(self):
         """

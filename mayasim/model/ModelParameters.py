@@ -33,10 +33,9 @@ class ModelParameters(object):
 
     # DROUGHT PARAMETERS
 
-    # time step at which drought event starts
-    drought_start = 150
-    # duration of drought event in steps
-    drought_length = 50
+    # timing of drought events as list of list of
+    # start and end dates
+    drought_times = [[150, 170]]
     # decrease in rainfall in percent
     drought_severity = 0
 

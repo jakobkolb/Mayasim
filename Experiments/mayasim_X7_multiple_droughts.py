@@ -30,7 +30,7 @@ test = True
 
 
 
-def run_function(d_start=150, d_length=20, d_severity=50.,
+def run_function(d_severity=50.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
@@ -45,10 +45,8 @@ def run_function(d_start=150, d_length=20, d_severity=50.,
 
     Parameters:
     -----------
-    d_start : int
-        starting point of drought in model time
-    d_length : int
-        length of drought in timesteps
+    d_times: list of lists
+        list of list of start and end dates of droughts
     d_severity : float
         severity of drought (decrease in rainfall in percent)
     r_bca : float > 0
@@ -78,6 +76,8 @@ def run_function(d_start=150, d_length=20, d_severity=50.,
 
     # initialize the Model
 
+    d_times = [[200, 220], [225, 245], [250, 270], [275, 295]],
+
     m = Model(n, output_data_location=filename, debug=test)
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
@@ -92,7 +92,7 @@ def run_function(d_start=150, d_length=20, d_severity=50.,
     m.kill_cities_without_crops = kill_cropless
 
     m.precipitation_modulation = False
-    m.drought_times = [[d_start, d_start + d_length]]
+    m.drought_times = d_times
     m.drought_severity = d_severity
 
     # store initial conditions and Parameters
@@ -161,7 +161,7 @@ def run_experiment(argv):
     # Generate paths according to switches and user name
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X6_drought_parameter_scan/'
+    experiment_folder = 'X7_multiple_droughts/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -183,21 +183,19 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "d_length", 1: "d_severity", 2: "r_trade"}
+    index = {0: "d_severity", 1: "r_trade"}
     if test == 0:
-        d_length = [5, 10, 15, 20]
-        d_severity = [0., 10., 20., 30., 40., 50., 60.]
+        d_severity = [0., 20., 40., 60.]
         r_trade = [6000, 8000, 10000]
         test = False
     else:
-        d_length = [5]
         d_severity = [0., 60.]
         r_trade = [6000,]
         test = True
 
-    param_combs = list(it.product(d_length, d_severity, r_trade))
+    param_combs = list(it.product(d_severity, r_trade))
 
-    sample_size = 10 if not test else 2
+    sample_size = 50 if not test else 2
 
     # Define names and callables for post processing
 
