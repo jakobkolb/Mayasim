@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --qos=short
-#SBATCH --job-name=Maya_5
-#SBATCH --output=ms_x5_%j.out
-#SBATCH --error=ms_x5_%j.err
+#SBATCH --job-name=Maya_7
+#SBATCH --output=ms_x7_%j.out
+#SBATCH --error=ms_x7_%j.err
 #SBATCH --account=copan
 #SBATCH --nodes=4
 #SBATCH --tasks-per-node=16
@@ -21,4 +21,4 @@ echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
 cd ../Experiments/
-srun -n $SLURM_NTASKS python mayasim_X5_trade_revised.py 0
+srun -n $SLURM_NTASKS python mayasim_X2_scan_r_es_and_r_agg.py 0

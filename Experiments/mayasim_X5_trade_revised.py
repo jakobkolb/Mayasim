@@ -28,7 +28,7 @@ test = True
 
 
 def run_function(r_trade=6000., precip_amplitude=1.,
-                 n=30, kill_cities_without_cropps=False,
+                 n=30, kill_cropless=False,
                  steps=350, filename='./'):
     """Initializes and runs model and retrieves and saves data afterwards.
 
@@ -50,16 +50,19 @@ def run_function(r_trade=6000., precip_amplitude=1.,
 
     # Initialize Model
 
+    if test:
+        n = 100
     m = Model(n=n, output_data_location=filename, debug=test)
+    m.r_trade = r_trade
+    m.precipitation_amplitude = precip_amplitude
+    m.output_level = 'trajectory'
+    m.kill_cities_without_crops = kill_cropless
+    m.better_ess = True
+
 
     if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
         m.output_settlement_data = False
-
-    m.r_trade = r_trade
-    m.precipitation_amplitude = precip_amplitude
-    m.output_level = 'trajectory'
-
 
     # Store initial conditions and parameters:
 
@@ -77,12 +80,13 @@ def run_function(r_trade=6000., precip_amplitude=1.,
     # Run model
 
     if test:
-        steps = 5
+        steps = 1
     m.run(steps)
 
     # Save results
 
     res["trajectory"] = m.get_trajectory()
+    res["traders trajectory"] = m.get_traders_trajectory()
 
     try:
         with open(filename, 'wb') as dumpfile:
@@ -125,7 +129,7 @@ def run_experiment(argv):
         test = bool(int(argv[1]))
 
     test_folder = ['', 'test_output/'][int(test)]
-    experiment_folder = 'X5_trade/'
+    experiment_folder = 'X5_trade_revised/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -136,34 +140,61 @@ def run_experiment(argv):
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
         save_path_raw = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, raw)
         save_path_res = "/home/jakob/Project_MayaSim/Python/" \
-                        "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+                        "output_data/{}{}{}".format(test_folder,
+                                                    experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
-    estimators = {"<mean_trajectories>":
+    name1 = "trajectory"
+    estimators1 = {"mean_trajectories":
                   lambda fnames: pd.concat([np.load(f)["trajectory"]
                                             for f in fnames]).groupby(
                       level=0).mean(),
-                  "<sigma_trajectories>":
+                  "sigma_trajectories":
                   lambda fnames: pd.concat([np.load(f)["trajectory"]
                                             for f in fnames]).groupby(
                           level=0).std()
                   }
+    name2 = "traders_trajectory"
+    estimators2 = {
+                  "mean_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).mean(),
+                  "sigma_trajectories":
+                      lambda fnames:
+                      pd.concat([np.load(f)["traders trajectory"]
+                                            for f in fnames]).groupby(
+                          level=0).std()
+                  }
 
-    precip_amplitudes = [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.] \
+    # "precipitation_variation" is within the range of [-0.18, 0.06]
+    # zero rain at some point would therefore imply a precipitation
+    # amplitude of 5.55.
+    precip_amplitudes = [0., 1., 2., 3., 4., 5.] \
         if not test else [0., 1.]
-    r_trades = [5000., 6000., 7000., 8000., 9000., 10000.] \
+    # default r_trade is 6000.
+    r_trades = [3000., 4000., 5000., 6000., 7000., 8000., 9000., 10000.] \
         if not test else [6000., 8000.]
+    kill_cities = [True, False]
 
-    parameter_combinations = list(it.product(precip_amplitudes, r_trades))
+    parameter_combinations = list(it.product(precip_amplitudes,
+                                             r_trades,
+                                             kill_cities))
 
-    name = "trade_income_transition"
-    index = {0: 'precip_amplitude', 1: 'r_trade'}
-    sample_size = 10
 
+    index = {0: 'precip_amplitude',
+             1: 'r_trade',
+             2: 'kill_cropless'}
+    sample_size = 5 if not test else 2
+
+    if test:
+        print('testing {}'.format(experiment_folder))
     h = handle(sample_size=sample_size,
                parameter_combinations=parameter_combinations,
                index=index,
@@ -172,7 +203,17 @@ def run_experiment(argv):
                use_kwargs=True)
 
     h.compute(run_func=run_function)
-    h.resave(eva=estimators, name=name)
+    h.resave(eva=estimators1, name=name1)
+    h.resave(eva=estimators2, name=name2)
+
+    if test:
+        data = pd.read_pickle(save_path_res + name1)
+        print(data.head())
+        data = pd.read_pickle(save_path_res + name2)
+        print(data.head())
+        print(save_path_res)
+
+    return 1
 
 
 if __name__ == "__main__":

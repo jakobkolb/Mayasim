@@ -9,7 +9,7 @@ class ModelParameters(object):
     output_level = 'spatial'   # either 'spatial' or 'trajectory'
 
     # INITIAL NUMBER OF SETTLEMENTS
-    min_init_inhabitants = 1000	    # 1000
+    min_init_inhabitants = 1000	   # 1000
     max_init_inhabitants = 2000    # 2000
 
     timesteps = 325			# 325
@@ -35,7 +35,8 @@ class ModelParameters(object):
     # percentage of raindrops that is infitrated per iteration
     infitration = 0
     # Percentage of cells that receive raindrops 
-    # (might be redundant, have to look into that -- looked into that, proves to be useful now)
+    # (might be redundant, have to look into that
+    # -- looked into that, proves to be useful now)
     # speeds up water flow by approx. 1/precip_percent
     precip_percent = 0.25
 
@@ -78,10 +79,13 @@ class ModelParameters(object):
     reg_rate = 2.5  # 2.5 - regeneration rate for state 3 forest cells
 
     # WEIGHTS FOR ECOSYSTEM SERVICES
-    e_ag = 0.06  # weight for agricultural productivity
-    e_r = 0.     # rain not included in current netlogo version
-    e_wf = 40.   # water flow
+    e_ag = 0.05  # weight for agricultural productivity
+    e_wf = 100.   # water flow
     e_f = 45.    # forest
+    e_r = 0.     # rainfall (not included in current netlogo version)
+    e_deg = 0.   # population density (not includet in current netlogo version)
+    # SWITCH FOR ECOSYSTEM SERVICES CALCULATION
+    better_ess = False
 
     # *******************************************************************
     # SOCIO-ECONOMY
@@ -92,10 +96,12 @@ class ModelParameters(object):
     eco_income_mode = 'sum'
 
     # WEIGHTS FOR INCOME CALCULATION
+    # Have been calibrated from parameter scans to yield
+    # realistic peak population levels.
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
-    r_bca_sum = 0.25  # 0.16- weight agriculture income for sum calculation
+    r_bca_sum = 0.25  # 0.25 - weight agr income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
-    r_es_sum = .0002     # 2.  - weight ecosystem services for sum calculation
+    r_es_sum = .0002  # 0.0002  - weight ecosys services for sum calculation
     r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS
