@@ -7,6 +7,7 @@ except ImportError:
 import datetime
 import numpy as np
 import os
+import sys
 import scipy.ndimage as ndimage
 import scipy.sparse as sparse
 from itertools import compress
@@ -320,7 +321,7 @@ class ModelCore(Parameters):
         # check if system time is in drought period
         drought = False
         for drought_time in self.drought_times:
-            if t > drought_time[0] and t < drought_time[1]:
+            if t > drought_time[0] and t <= drought_time[1]:
                 drought = True
         # if so, decrease precipitation by factor percentage given by
         # drought severity

@@ -35,9 +35,9 @@ class ModelParameters(object):
 
     # timing of drought events as list of list of
     # start and end dates
-    drought_times = [[150, 170]]
+    drought_times = [[0, 2], [150, 170]]
     # decrease in rainfall in percent
-    drought_severity = 0
+    drought_severity = 10
 
     # WATER FLOW PARAMETERS
     # percentage of raindrops that is infitrated per iteration

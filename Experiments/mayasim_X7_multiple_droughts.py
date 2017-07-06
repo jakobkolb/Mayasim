@@ -76,7 +76,7 @@ def run_function(d_severity=50.,
 
     # initialize the Model
 
-    d_times = [[200, 220], [225, 245], [250, 270], [275, 295]],
+    d_times = [[0, 2], [200, 220], [225, 245], [250, 270], [275, 295]]
 
     m = Model(n, output_data_location=filename, debug=test)
     if not filename.endswith('s0.pkl'):
