@@ -29,7 +29,6 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 test = True
 
 
-
 def run_function(d_severity=5.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
@@ -188,7 +187,7 @@ def run_experiment(argv):
         r_trade = [6000, 8000, 10000]
         test = False
     else:
-        r_trade = [6000,]
+        r_trade = [6000]
         test = True
 
     param_combs = list(it.product(r_trade))
@@ -197,17 +196,21 @@ def run_experiment(argv):
 
     # Define names and callables for post processing
 
-    name = "trajectory"
+    name1 = "aggregated_trajectory"
 
-    estimators = {"<mean_trajectories>":
-                  lambda fnames:
-                  pd.concat([np.load(f)["trajectory"]
-                             for f in fnames]).groupby(level=0).mean(),
-                  "<sigma_trajectories>":
-                  lambda fnames:
-                  pd.concat([np.load(f)["trajectory"]
-                             for f in fnames]).groupby(level=0).std()
-                  }
+    estimators1 = {"<mean_trajectories>":
+                   lambda fnames:
+                   pd.concat([np.load(f)["trajectory"]
+                              for f in fnames]).groupby(level=0).mean(),
+                   "<sigma_trajectories>":
+                   lambda fnames:
+                   pd.concat([np.load(f)["trajectory"]
+                              for f in fnames]).groupby(level=0).std()
+                   }
+    name2 = "all_trajectories"
+
+    estimators2 = {"trajectory_list":
+                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
     # Run computation and post processing.
 
@@ -219,7 +222,8 @@ def run_experiment(argv):
                 use_kwargs=True)
 
     handle.compute(run_func=run_function)
-    handle.resave(eva=estimators, name=name)
+    handle.resave(eva=estimators1, name=name1)
+    handle.resave(eva=estimators2, name=name2)
 
     return 1
 

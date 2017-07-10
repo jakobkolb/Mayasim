@@ -35,7 +35,7 @@ def run_function(d_severity=50.,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=350, filename='./'):
+                 kill_cropless=False, steps=900, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -186,7 +186,7 @@ def run_experiment(argv):
     index = {0: "d_severity", 1: "r_trade"}
     if test == 0:
         d_severity = [0., 20., 40., 60.]
-        r_trade = [6000, 8000, 10000]
+        r_trade = [6000, 7000, 8000, 10000]
         test = False
     else:
         d_severity = [0., 60.]
@@ -211,6 +211,10 @@ def run_experiment(argv):
                              for f in fnames]).groupby(level=0).std()
                   }
 
+    name2 = "all_trajectories"
+
+    estimators2 = {"trajectory_list":
+                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
     # Run computation and post processing.
 
     handle = eh(sample_size=sample_size,
@@ -222,6 +226,7 @@ def run_experiment(argv):
 
     handle.compute(run_func=run_function)
     handle.resave(eva=estimators, name=name)
+    handle.resave(eva=estimators2, name=name2)
 
     return 1
 

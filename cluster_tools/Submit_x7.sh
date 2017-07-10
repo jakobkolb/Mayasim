@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --qos=short
+#SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --job-name=Maya_7
 #SBATCH --output=ms_x7_%j.out
 #SBATCH --error=ms_x7_%j.err
