@@ -21,6 +21,12 @@ setup(name="mayasim",
       install_requires=[
             "numpy>=1.11.0",
             "pymofa>=0.1.0",
+            "networkx",
+            "pickle",
+            "itertools",
+            "scipy",
+            "matplotlib"
+
       ],
       # see http://stackoverflow.com/questions/15869473/what-is-the-advantage-
       # of-setting-zip-safe-to-true-when-packaging-a-python-projec
