@@ -180,11 +180,14 @@ def run_experiment(argv):
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
+    if getpass.getuser() == "jakob":
+        print(save_path_raw)
+        print(save_path_raw)
     # Generate parameter combinations
 
     index = {0: "r_trade"}
     if test == 0:
-        r_trade = [6000, 8000, 10000]
+        r_trade = [6000, 7000, 8000, 10000]
         test = False
     else:
         r_trade = [6000]
