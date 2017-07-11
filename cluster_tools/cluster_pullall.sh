@@ -1,1 +1,1 @@
-rsync -t -r --stats --progress -e "ssh kolb@aix.pik-potsdam.de ssh" kolb@cluster:/p/tmp/kolb/Mayasim/output_data/* ./output_data/raw/ || rsync -t -r --progress kolb@cluster:/p/tmp/kolb/Mayasim/output_data/* ./output_data/raw/
+rsync -t --progress kolb@cluster:/p/tmp/kolb/Mayasim/output_data/X8_longterm_dynamics/raw_data/* ./output_data/raw/X8_longterm_dynamics/raw_data/
