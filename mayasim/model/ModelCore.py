@@ -7,15 +7,22 @@ except ImportError:
 import datetime
 import numpy as np
 import os
+import sys
 import scipy.ndimage as ndimage
 import scipy.sparse as sparse
 from itertools import compress
 import pandas
+import operator
 import pkg_resources
 import networkx as nx
 
-from .f90routines import f90routines
-from .ModelParameters import ModelParameters as Parameters
+if __name__ == "__main__":
+    from ModelParameters import ModelParameters as Parameters
+    from f90routines import f90routines
+else:
+    from .f90routines import f90routines
+    from .ModelParameters import ModelParameters as Parameters
+
 
 import traceback
 import warnings
@@ -300,7 +307,6 @@ class ModelCore(Parameters):
         compensate for agriculture decline
         """
 
-        # EQUATION ###########################################################
         if self.precipitation_modulation:
             self.spaciotemporal_precipitation =\
                 self.precip*(
@@ -312,7 +318,16 @@ class ModelCore(Parameters):
             self.spaciotemporal_precipitation = \
                 self.precip*(1 -
                              self.veg_rainfall*self.cleared_land_neighbours)
-        # EQUATION ###########################################################
+        # check if system time is in drought period
+        drought = False
+        for drought_time in self.drought_times:
+            if t > drought_time[0] and t <= drought_time[1]:
+                drought = True
+        # if so, decrease precipitation by factor percentage given by
+        # drought severity
+        if drought:
+            self.spaciotemporal_precipitation *= \
+                (1. - self.drought_severity / 100.)
 
     def get_waterflow(self):
         """
@@ -536,8 +551,11 @@ class ModelCore(Parameters):
             if self.debug:
                 print('population of cities without agriculture:')
                 print(np.array(self.population)[self.number_cropped_cells == 0])
+                print('pt. migration from cities without agriculture:')
+                print(np.array(self.out_mig)[self.number_cropped_cells == 0])
                 print('out migration from cities without agriculture:')
                 print(np.array(self.migrants)[self.number_cropped_cells == 0])
+
 
             for index in range(len(occup[0])):
                 self.occupied_cells[occup[0, index], occup[1, index]] = 1
@@ -744,13 +762,15 @@ class ModelCore(Parameters):
     @property
     def build_routes(self):
 
-        adj = self.adjacency
+        adj = self.adjacency.copy()
         adj[adj == -1] = 0
+        built_links = 0
+        lost_links = 0
         g = nx.from_numpy_matrix(adj, create_using=nx.DiGraph())
         self.degree = g.out_degree()
         # cities with rank>0 are traders and establish links to neighbours
         for city in self.populated_cities:
-            if self.degree[city] <= self.rank[city]:
+            if self.degree[city] < self.rank[city]:
                 distances =\
                     (np.sqrt(self.area*(+ (self.settlement_positions[0][city]
                                            - self.settlement_positions[0])**2
@@ -770,11 +790,14 @@ class ModelCore(Parameters):
                 else:
                     treshold = 0
 
-                # don't chose yourself as neares neighbor
+                # don't chose yourself as nearest neighbor
                 distances[city] = 2 * treshold
 
-                # collect close enough neighbors
-                nearby = (distances <= treshold)
+                # collect close enough neighbors and omit those that are
+                # already connected.
+                a = distances <= treshold
+                b = self.adjacency[city] == 0
+                nearby = np.array(list(map(operator.and_, a, b)))
 
                 # if there are traders nearby,
                 # connect to the one with highest population
@@ -783,6 +806,7 @@ class ModelCore(Parameters):
                         new_partner = np.nanargmax(self.population*nearby)
                         self.adjacency[city, new_partner] = 1
                         self.adjacency[new_partner, city] = -1
+                        built_links += 1
                     except ValueError:
                         print('ERROR in new partner')
                         print(np.shape(self.population),
@@ -799,8 +823,9 @@ class ModelCore(Parameters):
                 # cut link with him
                 self.adjacency[city, smallest_neighbor] = 0
                 self.adjacency[smallest_neighbor, city] = 0
+                lost_links += 1
 
-        return
+        return (built_links, lost_links)
 
     def get_comps(self): 
         # convert adjacency matrix to compressed sparse row format
@@ -928,12 +953,13 @@ class ModelCore(Parameters):
     def migration(self, es):
         # if outmigration rate exceeds threshold, found new settlement
         self.migrants = [0] * self.number_settlements
-
+        new_settlements = 0
         vacant_lands = np.isfinite(es)
         influenced_cells = np.concatenate(self.cells_in_influence, axis=1)
         vacant_lands[influenced_cells[0], influenced_cells[1]] = 0
         vacant_lands = np.asarray(np.where(vacant_lands == 1))
         for city in self.populated_cities:
+            rd = np.random.rand()
             if (self.out_mig[city] > 400
                     and np.random.rand() <= 0.5):
 
@@ -967,6 +993,9 @@ class ModelCore(Parameters):
                     index = (vacant_lands[0, :] == new_loc[0])\
                         & (vacant_lands[1, :] == new_loc[1])
                     np.delete(vacant_lands, int(np.where(index)[0]), 1)
+                    new_settlements += 1
+
+        return new_settlements
 
     def kill_cities(self):
 
@@ -974,6 +1003,8 @@ class ModelCore(Parameters):
         # if they have neither population nor cropped cells.
         # this might lead to unexpected consequences. see what happenes,
         # when after adding all cities, only unique ones are kept
+
+        killed_cities = 0
 
         # kill cities if they have either no crops or no inhabitants:
         dead_city_indices = [i for i in range(len(self.population))
@@ -1018,6 +1049,8 @@ class ModelCore(Parameters):
             del self.s_es_pg[index]
             del self.migrants[index]
 
+            killed_cities += 1
+
         # special cases:
         self.settlement_positions = \
             np.delete(self.settlement_positions,
@@ -1037,7 +1070,7 @@ class ModelCore(Parameters):
         self.dead_cities = [index for index, value
                             in enumerate(self.population) if value == 0]
 
-        return
+        return killed_cities
 
     def spawn_city(self, x, y, mig_pop):
         """
@@ -1145,19 +1178,20 @@ class ModelCore(Parameters):
                 self.evolve_soil_deg()
                 self.update_pop_gradient()
                 self.get_rank()
-                cl = self.build_routes
+                (built, lost) = self.build_routes
                 self.get_comps()
                 self.get_centrality()
                 self.get_trade_income()
                 self.get_real_income_pc()
                 self.get_pop_mig()
-                self.migration(es)
-                self.kill_cities()
+                new_settlements = self.migration(es)
+                killed_settlements = self.kill_cities()
             else:
                 abandoned = sown = cl = 0
 
             self.step_output(t, npp, wf, ag, es, bca,
-                             abandoned, sown)
+                             abandoned, sown, built, lost,
+                             new_settlements, killed_settlements)
 
     def init_output(self):
         """initializes data output for trajectory, settlements and geography depending on settings"""
@@ -1183,7 +1217,9 @@ class ModelCore(Parameters):
         if self.output_geographic_data:
             pass
 
-    def step_output(self, t, npp, wf, ag, es, bca, abandoned, sown):
+    def step_output(self, t, npp, wf, ag, es, bca,
+                    abandoned, sown, built, lost,
+                    new_settlements, killed_settlements):
         """
         call different data saving routines depending on settings.
 
@@ -1206,16 +1242,29 @@ class ModelCore(Parameters):
             Number of cells that was abandoned in the previous time step
         sown: int
             Number of cells that was newly cropped in the previous time step
+        built : int
+            number of trade links built in this timestep
+        lost : int
+            number of trade links lost in this timestep
+        new_settlements : int
+            number of new settlements that were spawned during the preceeding
+            timestep
+        killed_settlements : int
+            number of settlements that were killed during the preceeding
+            timestep
         """
 
         # append stuff to trajectory
         if self.output_trajectory:
-            self.update_trajectory_output(t, [npp, wf, ag, es, bca])
+            self.update_trajectory_output(t, [npp, wf, ag, es, bca],
+                                          built, lost, new_settlements,
+                                          killed_settlements)
             self.update_traders_trajectory_output(t)
 
         # save maps of spatial data
         if self.output_geographic_data:
-            self.save_geographic_output(t, npp, wf, ag, es, bca, abandoned, sown)
+            self.save_geographic_output(t, npp, wf, ag, es, bca,
+                                        abandoned, sown)
 
         # save data on settlement basis
         if self.output_settlement_data:
@@ -1313,6 +1362,10 @@ class ModelCore(Parameters):
                                 'total_trade_links',
                                 'mean_cluster_size',
                                 'max_cluster_size',
+                                'new settlements',
+                                'killed settlements',
+                                'built trade links',
+                                'lost trade links',
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
@@ -1325,7 +1378,7 @@ class ModelCore(Parameters):
                                 'es_income_agricultural_productivity',
                                 'es_income_precipitation',
                                 'es_income_pop_density',
-                                'max_rain',
+                                'MAP',
                                 'max_npp',
                                 'mean_waterflow',
                                 'max_AG',
@@ -1352,7 +1405,8 @@ class ModelCore(Parameters):
                                         'es_income_precipitation',
                                         'es_income_pop_density'])
 
-    def update_trajectory_output(self, time, args):
+    def update_trajectory_output(self, time, args, built, lost,
+                                 new_settlements, killed_settlements):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
@@ -1382,6 +1436,10 @@ class ModelCore(Parameters):
                                 total_trade_links,
                                 mean_cluster_size,
                                 max_cluster_size,
+                                new_settlements,
+                                killed_settlements,
+                                built,
+                                lost,
                                 income_agriculture,
                                 income_ecosystem,
                                 income_trade,
@@ -1394,7 +1452,7 @@ class ModelCore(Parameters):
                                 np.sum(self.s_es_ag),
                                 np.sum(self.s_es_sp),
                                 np.sum(self.s_es_pg),
-                                np.nanmax(self.precip),
+                                np.nanmean(self.spaciotemporal_precipitation),
                                 np.nanmax(args[0]),
                                 np.nanmean(args[1]),
                                 np.nanmax(args[2]),
@@ -1520,7 +1578,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import shutil
 
-    N = 50
+    N = 10
 
     # define saving location
     comment = "testing_version"
@@ -1538,7 +1596,7 @@ if __name__ == "__main__":
                       output_geographic_data=True,
                       output_data_location=location)
     # run Model
-    timesteps = 5
+    timesteps = 20
     model.crop_income_mode = 'sum'
     model.r_es_sum = 0.0001
     model.r_bca_sum = 0.1
@@ -1546,6 +1604,8 @@ if __name__ == "__main__":
     model.run(timesteps)
 
     trj = model.get_trajectory()
-    plot = trj.plot()
+    plot = trj[['lost trade links', 'built trade links',
+                'new settlements', 'killed settlements',
+                'total_trade_links']].plot()
     plt.show()
     plt.savefig(plot, location + 'plot')

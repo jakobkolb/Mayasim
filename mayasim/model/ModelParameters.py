@@ -31,6 +31,14 @@ class ModelParameters(object):
     # length of period with constant rainfall
     climate_var = 3
 
+    # DROUGHT PARAMETERS
+
+    # timing of drought events as list of list of
+    # start and end dates
+    drought_times = [[0, 2], [150, 170]]
+    # decrease in rainfall in percent
+    drought_severity = 10
+
     # WATER FLOW PARAMETERS
     # percentage of raindrops that is infitrated per iteration
     infitration = 0
