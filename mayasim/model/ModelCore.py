@@ -59,6 +59,7 @@ class ModelCore(Parameters):
         # Input/Output settings:
 
         # Set path to static input files
+
         input_data_location = pkg_resources.\
             resource_filename('mayasim', 'input_data/')
 
@@ -94,12 +95,13 @@ class ModelCore(Parameters):
         # Trajectory data will be kept in one data structure to be read out, when
         # the model run finished.
 
+        print(self.output_data_location)
         self.settlement_output_path = \
             lambda i: self.output_data_location \
-                      + 'settlement_data_{0:03d}'.format(i)
+                      + 'settlement_data_{0:03d}.pkl'.format(i)
         self.geographic_output_path = \
             lambda i: self.output_data_location \
-                      + 'geographic_data_{0:03d}'.format(i)
+                      + 'geographic_data_{0:03d}.pkl'.format(i)
 
         self.trajectory = []
         self.traders_trajectory = []
@@ -184,6 +186,8 @@ class ModelCore(Parameters):
 
         # Forest
         self.forest_state = np.ones((self.rows, self.columns), dtype=int)
+        self.forest_state[np.isnan(self.elev)] = 0
+
         self.forest_memory = np.zeros((self.rows, self.columns), dtype=int)
         self.cleared_land_neighbours = np.zeros((self.rows, self.columns),
                                                 dtype=int)
@@ -275,6 +279,7 @@ class ModelCore(Parameters):
         self.comp_size = [0] * n
         self.centrality = [0] * n
         self.trade_income = [0] * n
+        self.max_cluster_size = 0
 
         # total real income per capita
         self.real_income_pc = [0] * n
@@ -417,7 +422,7 @@ class ModelCore(Parameters):
                 self.cleared_land_neighbours[i] =\
                         np.sum(self.forest_state[i[0]-1:i[0]+2,
                                                  i[1]-1:i[1]+2] == 1)
-        assert not np.any(self.forest_state < 1), \
+        assert not np.any(self.forest_state[~np.isnan(self.elev)] < 1), \
             'forest state is smaller than 1 somewhere'
 
         return
@@ -500,11 +505,12 @@ class ModelCore(Parameters):
         """
         creates a list of cells for each city that are under its influence.
         these are the cells that are closer than population^0.8/60 (which is
-        not explained any further...
+        not explained any further... change denominator to 80 and max value to 
+        30 from eyeballing the results
         """
 # EQUATION ####################################################################
-        self.area_of_influence = [(x**0.8)/60. for x in self.population]
-        self.area_of_influence = [value if value < 40. else 40.
+        self.area_of_influence = [(x**0.8)/90. for x in self.population]
+        self.area_of_influence = [value if value < 30. else 30.
                                   for value in self.area_of_influence]
 # EQUATION ####################################################################
         for city in self.populated_cities:
@@ -1136,11 +1142,21 @@ class ModelCore(Parameters):
         # initialize time step
         t = 0
 
+        # print update about output state
+        if self.debug:
+            print('output of settlement and geodata is {} and {}'.format(self.output_settlement_data,
+                                                                         self.output_geographic_data))
+
         # initialize variables
         # net primary productivity
         npp = np.zeros((self.rows,self.columns))
         # water flow
-        wf = np.zeros((self.rows,self.columns))
+        if self.debug and t == 0:
+            wf = np.zeros((self.rows,self.columns))
+        elif not self.debug:
+            wf = np.zeros((self.rows, self.columns))
+        else:
+            pass
         # agricultural productivity
         ag = np.zeros((self.rows,self.columns))
         # ecosystem services
@@ -1334,20 +1350,24 @@ class ModelCore(Parameters):
             Number of cells that was newly cropped in the previous time step
         """
 
-        data = {'rain': self.spaciotemporal_precipitation,
-                'npp': npp,
-                'forest': self.forest_state,
+        tmpforest = self.forest_state.copy()
+        tmpforest[np.isnan(self.elev)] = 0
+        data = {'forest': tmpforest,
                 'waterflow': wf,
-                'AG': ag,
-                'ES': es,
-                'BCA': bca,
                 'cells in influence': self.cells_in_influence,
                 'number of cells in influence': self.number_cells_in_influence,
                 'cropped cells': self.cropped_cells,
                 'number of cropped cells': self.number_cropped_cells,
                 'abandoned sown': np.array([abandoned, sown]),
                 'soil degradation': self.soil_deg,
-                'population gradient': self.pop_gradient}
+                'population gradient': self.pop_gradient,
+                'adjacency': self.adjacency,
+                'x positions': list(self.settlement_positions[0]),
+                'y positions': list(self.settlement_positions[1]),
+                'population': self.population,
+                'elev': self.elev,
+                'rank': self.rank
+                }
 
         with open(self.geographic_output_path(t), 'wb') as f:
             pkl.dump(data, f)
@@ -1355,6 +1375,7 @@ class ModelCore(Parameters):
     def init_trajectory_output(self):
         self.trajectory.append(['time',
                                 'total_population',
+                                'max settlement population',
                                 'total_migrants',
                                 'total_settlements',
                                 'total_agriculture_cells',
@@ -1410,6 +1431,7 @@ class ModelCore(Parameters):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
+        max_population = max(self.population)
         total_migrangs = sum(self.migrants)
         total_settlements = len(self.population)
         total_trade_links = sum(self.degree)/2
@@ -1424,11 +1446,13 @@ class ModelCore(Parameters):
             max_cluster_size = max(self.comp_size)
         except:
             max_cluster_size = 0
+        self.max_cluster_size = max_cluster_size
         total_agriculture_cells = sum(self.number_cropped_cells)
         total_cells_in_influence = sum(self.number_cells_in_influence)
 
         self.trajectory.append([time,
                                 total_population,
+                                max_population,
                                 total_migrangs,
                                 total_settlements,
                                 total_agriculture_cells,
