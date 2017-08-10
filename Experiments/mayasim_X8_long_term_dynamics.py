@@ -20,13 +20,16 @@ import getpass
 import itertools as it
 import numpy as np
 import sys
+import os
 import pandas as pd
 
 from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
+from mayasim.visuals.custom_visuals import MapPlot
 
 test = True
+steps = 3000
 
 
 def run_function(d_severity=5.,
@@ -34,7 +37,7 @@ def run_function(d_severity=5.,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=3000, filename='./'):
+                 kill_cropless=False, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -108,10 +111,7 @@ def run_function(d_severity=5.,
 
     # run Model
 
-    if test:
-        m.run(3)
-    else:
-        m.run(steps)
+    m.run(steps)
 
     # Retrieve results
 
@@ -123,6 +123,8 @@ def run_function(d_severity=5.,
             return 1
     except IOError:
         return -1
+
+
 
 
 def run_experiment(argv):
@@ -152,10 +154,15 @@ def run_experiment(argv):
     """
 
     global test
+    global steps
 
     # Parse switches from input
     if len(argv) > 1:
         test = int(argv[1])
+    if len(argv) > 2:
+        mode = int(argv[2])
+    else:
+        mode = 0
 
     # Generate paths according to switches and user name
 
@@ -180,9 +187,6 @@ def run_experiment(argv):
         save_path_res = './{}'.format(res)
         save_path_raw = './{}'.format(raw)
 
-    if getpass.getuser() == "jakob":
-        print(save_path_raw)
-        print(save_path_raw)
     # Generate parameter combinations
 
     index = {0: "r_trade"}
@@ -190,12 +194,13 @@ def run_experiment(argv):
         r_trade = [6000, 7000, 8000, 10000]
         test = False
     else:
-        r_trade = [6000]
+        r_trade = [6000, 7000]
         test = True
 
     param_combs = list(it.product(r_trade))
 
-    sample_size = 50 if not test else 2
+    steps = 3000 if not test else 10
+    sample_size = 2 if not test else 2
 
     # Define names and callables for post processing
 
@@ -215,6 +220,27 @@ def run_experiment(argv):
     estimators2 = {"trajectory_list":
                    lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
+    def plot_function(steps=1, output_location='./', fnames='./'):
+        input_loc = fnames[0]
+        if input_loc.endswith('.pkl'):
+            input_loc = input_loc[:-4]
+
+        tail = input_loc.rsplit('/', 1)[1]
+        output_location += tail
+        print(tail)
+        if not os.path.isdir(output_location):
+            os.mkdir(output_location)
+        mp = MapPlot(t_max=steps,
+                     input_location=input_loc,
+                     output_location=output_location)
+
+        mp.mplot()
+        return 1
+
+    name3 = "FramePlots"
+    estimators3 = {"map_plots":
+                   lambda fnames: plot_function(steps=steps, output_location=save_path_res, fnames=fnames)}
+
     # Run computation and post processing.
 
     handle = eh(sample_size=sample_size,
@@ -223,10 +249,12 @@ def run_experiment(argv):
                 path_raw=save_path_raw,
                 path_res=save_path_res,
                 use_kwargs=True)
-
-    handle.compute(run_func=run_function)
-    handle.resave(eva=estimators1, name=name1)
-    handle.resave(eva=estimators2, name=name2)
+    if mode == 0:
+        handle.compute(run_func=run_function)
+        handle.resave(eva=estimators1, name=name1)
+        handle.resave(eva=estimators2, name=name2)
+    elif mode == 1:
+        handle.resave(eva=estimators3, name=name3, no_output=True)
 
     return 1
 
