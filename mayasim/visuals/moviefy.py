@@ -25,7 +25,7 @@ def moviefy(input_folder, output_folder=None, rmold=False, namelist=['image_']):
         input_string = input_folder + name + "%03d.png"
         del_string = input_folder + name + "*.png"
         output_string = output_folder + name.strip('_') + '.mp4'
-        call(["ffmpeg", "-y", "-r", `framerate`, "-i", input_string, output_string])
+        call(["ffmpeg", "-y", "-r", repr(framerate), "-i", input_string, output_string])
         if rmold:
             for fl in glob.glob(del_string):
                 os.remove(fl)
