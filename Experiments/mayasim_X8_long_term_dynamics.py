@@ -199,8 +199,8 @@ def run_experiment(argv):
 
     param_combs = list(it.product(r_trade))
 
-    steps = 3000 if not test else 10
-    sample_size = 2 if not test else 2
+    steps = 3000 if not test else 250
+    sample_size = 2 if not test else 1
 
     # Define names and callables for post processing
 
@@ -221,6 +221,8 @@ def run_experiment(argv):
                    lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
     def plot_function(steps=1, output_location='./', fnames='./'):
+        print(output_location)
+        print(fnames)
         input_loc = fnames[0]
         if input_loc.endswith('.pkl'):
             input_loc = input_loc[:-4]

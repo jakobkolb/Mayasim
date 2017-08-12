@@ -3,6 +3,8 @@ import os
 from subprocess import call
 
 import matplotlib as mpl
+# Force matplotlib to not use any Xwindows backend
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
