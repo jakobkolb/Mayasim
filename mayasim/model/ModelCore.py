@@ -1431,7 +1431,10 @@ class ModelCore(Parameters):
         # args = [npp, wf, ag, es, bca]
 
         total_population = sum(self.population)
-        max_population = max(self.population)
+        try:
+            max_population = np.nanmax(self.population)
+        except:
+            max_population = float('nan')
         total_migrangs = sum(self.migrants)
         total_settlements = len(self.population)
         total_trade_links = sum(self.degree)/2
