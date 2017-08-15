@@ -68,9 +68,6 @@ class ModelCore(Parameters):
 
         # Debugging settings
         self.debug = debug
-        if debug:
-            self.min_init_inhabitants = 3000
-            self.max_init_inhabitants = 20000
 
         # In debug mode, allways print stack for warnings and errors.
         def warn_with_traceback(message, category, filename, lineno, file=None,
@@ -509,8 +506,8 @@ class ModelCore(Parameters):
         30 from eyeballing the results
         """
 # EQUATION ####################################################################
-        self.area_of_influence = [(x**0.8)/90. for x in self.population]
-        self.area_of_influence = [value if value < 30. else 30.
+        self.area_of_influence = [(x**0.8)/60. for x in self.population]
+        self.area_of_influence = [value if value < 40. else 40.
                                   for value in self.area_of_influence]
 # EQUATION ####################################################################
         for city in self.populated_cities:
@@ -554,7 +551,7 @@ class ModelCore(Parameters):
         # unification of the cropped cells of all settlements.
         if len(self.cropped_cells) > 0:
             occup = np.concatenate(self.cropped_cells, axis=1).astype('int')
-            if self.debug:
+            if False:
                 print('population of cities without agriculture:')
                 print(np.array(self.population)[self.number_cropped_cells == 0])
                 print('pt. migration from cities without agriculture:')
@@ -1452,6 +1449,9 @@ class ModelCore(Parameters):
         self.max_cluster_size = max_cluster_size
         total_agriculture_cells = sum(self.number_cropped_cells)
         total_cells_in_influence = sum(self.number_cells_in_influence)
+
+        if self.debug:
+            print(total_population, total_settlements)
 
         self.trajectory.append([time,
                                 total_population,

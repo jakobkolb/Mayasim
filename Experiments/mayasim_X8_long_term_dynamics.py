@@ -237,6 +237,7 @@ def run_experiment(argv):
                      output_location=output_location)
 
         mp.mplot()
+        mp.moviefy(namelist=['frame_'])
         return 1
 
     name3 = "FramePlots"
@@ -251,6 +252,7 @@ def run_experiment(argv):
                 path_raw=save_path_raw,
                 path_res=save_path_res,
                 use_kwargs=True)
+    print('mode is {}'.format(mode))
     if mode == 0:
         handle.compute(run_func=run_function)
         handle.resave(eva=estimators1, name=name1)

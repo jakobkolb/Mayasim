@@ -54,11 +54,11 @@ class MapPlot(object):
             print(t, self.t_max)
 
             axa = plt.subplot2grid((2, 3), (0, 2))
-            axa2 = axa.twinx()
             axb = plt.subplot2grid((2, 3), (1, 2))
+            axa2 = axb.twinx()
 
-            axa.set_xlim([1, max(self.trj['time'])])
-            axa.set_ylim([0, max(self.trj['total_population'])])
+            axa.set_xlim([min(self.trj['forest_state_3_cells']), max(self.trj['forest_state_3_cells'])])
+            axa.set_ylim([min(self.trj['total_population']), max(self.trj['total_population'])])
             axa2.set_xlim([1, max(self.trj['time'])])
             axa2.set_ylim([0,
                            max([max(self.trj['total_income_agriculture']),
@@ -68,21 +68,27 @@ class MapPlot(object):
                            ])
 
             #print(self.trj.columns)
-            time = self.trj['time'][0:t]
+            time = range(0, t)
             population = self.trj['total_population'][0:t]
             agg_income = self.trj['total_income_agriculture'][0:t]
             trade_income = self.trj['total_income_trade'][0:t]
             ess_income = self.trj['total_income_ecosystem'][0:t]
+            climax_forest = self.trj['forest_state_3_cells'][0:t]
 
-            ln1 = axa.plot(time, population, color='blue', label='total population')
+            ln1 = axa.plot(climax_forest, population, color='blue', label='total population')
+            ln1b = axa.scatter(climax_forest.values[-1], population.values[-1], color='blue')
+
+            axa.set_xlabel('climax forest cells')
+            axa.set_ylabel('total population')
+
 
             ln2 = axa2.plot(time, agg_income, color='black', label='income from agriculture')
             ln3 = axa2.plot(time, ess_income, color='green', label='income from ecosystem')
             ln4 = axa2.plot(time, trade_income, color='red', label='income from trade')
 
-            lns = ln1 + ln2 + ln3 + ln4
+            lns = ln2 + ln3 + ln4
             labs = [l.get_label() for l in lns]
-            axa.legend(lns, labs, loc=0)
+            axb.legend(lns, labs, loc=0)
 
             forest_data = self.trj[['total_agriculture_cells',
                                     'forest_state_1_cells',
@@ -164,7 +170,7 @@ class MapPlot(object):
             fig.savefig(ol, dpi=150)
             fig.clear()
         try:
-            self.moviefy(namelist=['frame_'])
+            self.moviefy()
         finally:
             pass
 

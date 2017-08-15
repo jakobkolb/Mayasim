@@ -208,7 +208,7 @@ def run_experiment(argv):
     if test == 0:
         d_length = list(range(0, 105, 5))
         d_severity = list(range(0, 105, 5))
-        r_trade = list(range(6000, 9000, 1000))
+        r_trade = list(range(4000, 11000, 2000))
         test = False
     else:
         d_length = [20]
