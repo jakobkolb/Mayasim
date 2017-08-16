@@ -34,8 +34,6 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 
 test = True
 
-
-
 def run_function(d_start=200, d_length=20, d_severity=50.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
@@ -219,7 +217,7 @@ def run_experiment(argv):
     param_combs = list(it.product(d_length, d_severity, r_trade))
     print('computing results for {} parameter combinations'.format(len(param_combs)))
 
-    if len(param_combs)%max_id != 0:
+    if len(param_combs) % max_id != 0:
         print('number of jobs ({}) has to be multiple of max_id ({})!!'.format(len(param_combs), max_id))
         exit(-1)
 
@@ -240,7 +238,6 @@ def run_experiment(argv):
                    lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
     def foo(fnames, keys):
-        sample_size = len(fnames)
         key = keys[0]
         data = [np.load(f)[key] for f in fnames]
         df = pd.DataFrame(data=data, columns=[keys[0]])
@@ -256,7 +253,6 @@ def run_experiment(argv):
                                 "final trade links",
                                 "final max cluster size"])
                    }
-
 
     # Run computation and post processing.
 
@@ -280,10 +276,6 @@ def run_experiment(argv):
         return 0
 
     return 1
-
-
-
-
 
 if __name__ == '__main__':
 
