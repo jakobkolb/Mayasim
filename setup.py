@@ -24,7 +24,8 @@ setup(name="mayasim",
             "networkx",
             "pickleshare",
             "scipy",
-            "matplotlib"
+            "matplotlib",
+            "pandas"
 
       ],
       dependency_links=['https://github.com/jakobkolb/pymofa/tarball/master#egg=pymofa-0.1.0'],
