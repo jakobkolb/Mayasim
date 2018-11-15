@@ -16,30 +16,25 @@ Also, we vary the parameter for income from trade so see, if
 there is a certain parameter value, that results in 
 stable complex society for some drought events and collapse for others.
 """
-
-from __future__ import print_function
-try:
-    import cPickle as cp
-except ImportError:
-    import pickle as cp
 import getpass
 import itertools as it
-import numpy as np
 import sys
 import pandas as pd
+from pathlib import Path
+import numpy as np
 
 from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
-from mayasim.model.ModelParameters import ModelParameters as Parameters
 
-test = True
 
 def run_function(d_start=200, d_length=20, d_severity=50.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=500, filename='./'):
+                 kill_cropless=False, steps=500,
+                 settlement_output_path=0,
+                 test=False):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -82,8 +77,8 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
 
     # initialize the Model
 
-    m = Model(n, output_data_location=filename, debug=test)
-    if not filename.endswith('s0.pkl'):
+    m = Model(n=n, output_data_location=settlement_output_path, debug=test)
+    if settlement_output_path == 0:
         m.output_geographic_data = False
         m.output_settlement_data = False
 
@@ -99,18 +94,6 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     m.drought_times = [[d_start, d_start + d_length]]
     m.drought_severity = d_severity
 
-    # store initial conditions and Parameters
-
-    res = {"initials": pd.DataFrame({"Settlement X Possitions":
-                                     m.settlement_positions[0],
-                                     "Settlement Y Possitions":
-                                     m.settlement_positions[1],
-                                     "Population": m.population}),
-           "Parameters": pd.Series({key: getattr(m, key)
-                                    for key in dir(Parameters)
-                                    if not key.startswith('__')
-                                    and not callable(key)})}
-
     # run Model
 
     if test:
@@ -118,19 +101,23 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     else:
         m.run(steps)
 
-    # Retrieve results
+    # Retrieve results.
 
-    res["trajectory"] = m.get_trajectory()
-    res["final population"] = sum(m.population)
-    res["final trade links"] = sum(m.degree)/2.
-    res["final max cluster size"] = m.max_cluster_size
+    # This is a pandas dataframe
 
-    try:
-        with open(filename, 'wb') as dumpfile:
-            cp.dump(res, dumpfile)
-            return 1
-    except IOError:
-        return -1
+    micro_output = m.get_trajectory()
+    micro_output.index.name = 'tsteps'
+
+    data = {'final_population': [sum(m.population)],
+            'final_trade_links': [sum(m.degree) / 2.],
+            'final_max_cluster_size': [m.max_cluster_size]}
+
+    macro_output = pd.DataFrame(data)
+    macro_output.index.name = 'ind'
+
+    # and save them to the path indicated by 'filename'
+
+    return 1, [micro_output, macro_output]
 
 
 def run_experiment(argv):
@@ -159,11 +146,11 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
-    global test
-
     # Parse switches from input
     if len(argv) > 1:
         test = int(argv[1])
+    else:
+        test = True
     if len(argv) > 2:
         mode = int(argv[2])
     else:
@@ -185,98 +172,182 @@ def run_experiment(argv):
     res = 'results/'
 
     if getpass.getuser() == "kolb":
-        save_path_raw = "/p/tmp/kolb/Mayasim/output_data/{}{}{}".format(
-            test_folder, experiment_folder, raw)
-        save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
-            test_folder, experiment_folder, res)
+        save_path_raw = f"/p/tmp/kolb/Mayasim/output_data/{test_folder}{experiment_folder}{raw}"
+        save_path_res = f"/home/kolb/Mayasim/output_data/{test_folder}{experiment_folder}{res}"
     elif getpass.getuser() == "jakob":
-        save_path_raw = \
-            "/home/jakob/Project_MayaSim/Python/" \
-            "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
-        save_path_res = \
-            "/home/jakob/Project_MayaSim/Python/" \
-            "output_data/{}{}{}".format(test_folder, experiment_folder, res)
+        save_path_raw = f"/home/jakob/Project_MayaSim/Python/output_data/{test_folder}{experiment_folder}{raw}"
+        save_path_res = f"/home/jakob/Project_MayaSim/Python/output_data/{test_folder}{experiment_folder}{res}"
     else:
-        save_path_res = './{}'.format(res)
-        save_path_raw = './{}'.format(raw)
+        save_path_res = f'./{res}'
+        save_path_raw = f'./{raw}'
 
-    # Generate parameter combinations
+    # Generate parameter combinations and set up 'index' dictionary,
+    # indicating their possition in the Index of the postprocessed results.
 
-    index = {0: "d_length", 1: "d_severity", 2: "r_trade"}
+    d_start = [200]
+    r_bca, r_es = [0.2], [0.0002]
+    population_control = [False]
+    n, crop_income_mode, better_ess, kill_cropless, steps = [30], ['sum'], [True], [False], [500]
+    output_path = [0]
+
     if test == 0:
         d_length = list(range(0, 105, 5))
         d_severity = list(range(0, 105, 5))
         r_trade = list(range(4000, 11000, 2000))
-        test = False
+        test = [False]
     else:
         d_length = [20]
         d_severity = [0., 60.]
-        r_trade = [6000]
-        test = True
+        r_trade = [6000, 8000]
+        test = [True]
 
-    param_combs = list(it.product(d_length, d_severity, r_trade))
-    print('computing results for {} parameter combinations'.format(len(param_combs)))
+    # Order of the parameters in the resulting tuples have to match the one indicated in
+    # interface of run func, since they will be put in as *param_combs[index]
+    param_combs = list(it.product(d_start, d_length, d_severity, r_bca, r_es,
+                                  r_trade, population_control, n, crop_income_mode,
+                                  better_ess, kill_cropless, steps, output_path, test))
 
+    print(f'computing results for {len(param_combs)} parameter combinations')
+
+    # In this experiment, I use the job_id variable from an array job to split the
+    # parameter combinations into equally sized junks.
+    # This makes it easier for the queing algorithm to allocate its resources (which means,
+    # it will give you more of it ;)
+    # this also means, that the total number of jobs you run, must be a divider of the
+    # number of parameter combinations that you run.
     if len(param_combs) % max_id != 0:
-        print('number of jobs ({}) has to be multiple of max_id ({})!!'.format(len(param_combs), max_id))
+        print(f'number of jobs ({len(param_combs)}) has to be multiple of max_id ({max_id})!!')
         exit(-1)
 
-    sample_size = 20 if not test else 3
+    sample_size = 20 if not test else 2
 
     # Define names and callables for post processing
 
-    name1 = "trajectory"
-    estimators1 = {"<mean_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).mean(),
-                   "<sigma_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).std()
-                   }
-    name2 = "all_trajectories"
-    estimators2 = {"trajectory_list":
-                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
+    def mean(d_start, d_length, d_severity,
+             r_bca, r_es, r_trade,
+             population_control,
+             n, crop_income_mode,
+             better_ess, kill_cropless, steps,
+             settlement_output_path, test):
 
-    def foo(fnames, keys):
-        key = keys[0]
-        data = [np.load(f)[key] for f in fnames]
-        df = pd.DataFrame(data=data, columns=[keys[0]])
-        for key in keys[1:]:
-            data = [np.load(f)[key] for f in fnames]
-            df[key] = data
-        return df
+        from pymofa.safehdfstore import SafeHDFStore
 
-    name3 = "all_final_states"
-    estimators3 = {"final states":
-                   lambda fnames:
-                   foo(fnames, ["final population",
-                                "final trade links",
-                                "final max cluster size"])
-                   }
+        print(settlement_output_path, type(settlement_output_path))
+
+        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
+                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
+                f'& population_control={population_control} & n={n} ' \
+                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
+                f'& kill_cropless={kill_cropless} & steps={steps} ' \
+                f'& settlement_output_path={settlement_output_path} & test={test}'
+
+        with SafeHDFStore(compute_handle.path_raw) as store:
+            trj = store.select("dat_0", where=query)
+
+        df_out = trj.groupby(level='tsteps').mean()
+
+        return 1, df_out
+
+    def sem(d_start, d_length, d_severity,
+             r_bca, r_es, r_trade,
+             population_control,
+             n, crop_income_mode,
+             better_ess, kill_cropless, steps,
+             settlement_output_path, test):
+
+        from pymofa.safehdfstore import SafeHDFStore
+
+        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
+                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
+                f'& population_control={population_control} & n={n} ' \
+                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
+                f'& kill_cropless={kill_cropless} & steps={steps} ' \
+                f'& settlement_output_path={settlement_output_path} & test={test}'
+
+        with SafeHDFStore(compute_handle.path_raw) as store:
+            trj = store.select("dat_0", where=query)
+
+        df_out = trj.groupby(level='tsteps').sem()
+
+        return 1, df_out
+
+    def collect_final_states(d_start, d_length, d_severity,
+                             r_bca, r_es, r_trade,
+                             population_control,
+                             n, crop_income_mode,
+                             better_ess, kill_cropless, steps,
+                             settlement_output_path, test):
+
+        from pymofa.safehdfstore import SafeHDFStore
+
+        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
+                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
+                f'& population_control={population_control} & n={n} ' \
+                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
+                f'& kill_cropless={kill_cropless} & steps={steps} ' \
+                f'& settlement_output_path={settlement_output_path} & test={test}'
+
+        with SafeHDFStore(compute_handle.path_raw) as store:
+            trj = store.select("dat_1", where=query)
+
+        return 1, trj
+
+    # Create dummy runfunc output to pass its shape to experiment handle
+
+    try:
+        if not Path(save_path_raw).exists():
+            Path(save_path_raw).mkdir(parents=True, exist_ok=True)
+        rf_output = pd.read_pickle(save_path_raw + 'rfof.pkl')
+    except FileNotFoundError:
+        params = list(param_combs[0])
+        params[-1] = True
+        rf_output = run_function(*params)[1]
 
     # Run computation and post processing.
 
+    # devide parameter combination into equally sized chunks.
     cl = int(len(param_combs)/max_id)
     i = (job_id-1)*cl
     j = job_id*cl
 
-    handle = eh(sample_size=sample_size,
-                parameter_combinations=param_combs[i:j],
-                index=index,
-                path_raw=save_path_raw,
-                path_res=save_path_res,
-                use_kwargs=True)
+    # initialize computation and post processing handles
+    compute_handle = eh(run_func=run_function,
+                        runfunc_output=rf_output,
+                        sample_size=sample_size,
+                        parameter_combinations=param_combs[i:j],
+                        path_raw=save_path_raw,
+                        )
+    pp1_handle = eh(run_func=mean,
+                    runfunc_output=rf_output,
+                    sample_size=1,
+                    parameter_combinations=param_combs,
+                    path_raw=save_path_res + '/mean.h5',
+                    )
+    pp2_handle = eh(run_func=sem,
+                    runfunc_output=rf_output,
+                    sample_size=1,
+                    parameter_combinations=param_combs,
+                    path_raw=save_path_res + '/sem.h5',
+                    )
+    pp3_handle = eh(run_func=collect_final_states,
+                    runfunc_output=rf_output,
+                    sample_size=1,
+                    parameter_combinations=param_combs,
+                    path_raw=save_path_res + '/final_states.h5',
+                    )
+
     if mode == 1:
-        handle.compute(run_func=run_function)
+        compute_handle.compute()
         return 0
-    elif mode == 2:
-        handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
-        handle.resave(eva=estimators3, name=name3)
-        return 0
+    if mode == 2:
+        pp1_handle.compute()
+        pp2_handle.compute()
+        pp3_handle.compute()
 
     return 1
 
+
+# The definition of the run_function makes it easier to test the experiment with pytest.
 if __name__ == '__main__':
 
     run_experiment(sys.argv)
