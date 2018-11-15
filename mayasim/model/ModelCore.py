@@ -29,10 +29,8 @@ import sys
 
 class ModelCore(Parameters):
     def __init__(self, n=30,
-                 output_data_location='./', debug=False,
-                 output_trajectory=True,
-                 output_settlement_data=True,
-                 output_geographic_data=True):
+                 output_data_location=None, debug=False,
+                 output_trajectory=True, **kwargs):
         """
         Instance of the MayaSim model.
 
@@ -60,9 +58,6 @@ class ModelCore(Parameters):
         input_data_location = pkg_resources. \
             resource_filename('mayasim', 'input_data/')
 
-        # remove file ending
-        self.output_data_location = output_data_location.rsplit('.', 1)[0]
-
         # Debugging settings
         self.debug = debug
 
@@ -83,20 +78,28 @@ class ModelCore(Parameters):
         # MODEL PARAMETERS (to be varied)
         # *******************************************************************
         self.output_trajectory = output_trajectory
-        self.output_settlement_data = output_settlement_data
-        self.output_geographic_data = output_geographic_data
 
         # Settlement and geographic data will be written to files in each time step,
         # Trajectory data will be kept in one data structure to be read out, when
         # the model run finished.
 
-        print(self.output_data_location)
-        self.settlement_output_path = \
-            lambda i: self.output_data_location \
-            + 'settlement_data_{0:03d}.pkl'.format(i)
-        self.geographic_output_path = \
-            lambda i: self.output_data_location \
-            + 'geographic_data_{0:03d}.pkl'.format(i)
+        if output_data_location != 0:
+
+            # remove file ending
+            self.output_data_location = output_data_location.rsplit('.', 1)[0]
+
+            # create callable output paths
+            self.settlement_output_path = \
+                lambda i: self.output_data_location + f'settlement_data_{i:03d}.pkl'
+            self.geographic_output_path = \
+                lambda i: self.output_data_location + f'geographic_data_{i:03d}.pkl'
+
+            # set switches for output generation
+            self.output_geographic_data = True
+            self.output_settlement_data = True
+        else:
+            self.output_geographic_data = False
+            self.output_settlement_data = False
 
         self.trajectory = []
         self.traders_trajectory = []
@@ -1362,7 +1365,7 @@ class ModelCore(Parameters):
     def init_trajectory_output(self):
         self.trajectory.append(['time',
                                 'total_population',
-                                'max settlement population',
+                                'max_settlement_population',
                                 'total_migrants',
                                 'total_settlements',
                                 'total_agriculture_cells',
@@ -1370,10 +1373,10 @@ class ModelCore(Parameters):
                                 'total_trade_links',
                                 'mean_cluster_size',
                                 'max_cluster_size',
-                                'new settlements',
-                                'killed settlements',
-                                'built trade links',
-                                'lost trade links',
+                                'new_settlements',
+                                'killed_settlements',
+                                'built_trade_links',
+                                'lost_trade_links',
                                 'total_income_agriculture',
                                 'total_income_ecosystem',
                                 'total_income_trade',
@@ -1528,9 +1531,9 @@ class ModelCore(Parameters):
 
     def get_trajectory(self):
         try:
-            trj = self.trajectory
-            columns = trj.pop(0)
-            df = pandas.DataFrame(trj, columns=columns)
+            trj = np.array(self.trajectory)
+            columns = trj[0, :]
+            df = pandas.DataFrame(trj[1:, :], columns=columns)
         except IOError:
             print('trajectory mode must be turned on')
 
