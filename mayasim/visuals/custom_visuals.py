@@ -1,7 +1,203 @@
+import glob
+import os
+from subprocess import call
+
 import matplotlib as mpl
+# Force matplotlib to not use any Xwindows backend
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import os
+import pandas as pd
+from matplotlib.colors import ListedColormap, Normalize
+
+
+class MapPlot(object):
+    """Plot simulation state on map."""
+
+    def __init__(self,
+                 t_max=None,
+                 output_location="./pictures/",
+                 input_location=None):
+        """
+        Initialize the MapPlot class with custom parameters
+        
+        Parameters
+        ----------
+        t_max: int
+            max timestep to plot
+        output_location: basestring
+            output location for MapPlot frames
+        input_location: basestring
+            input location for simulation data to plot
+        """
+
+        self.trj = pd.read_pickle(input_location + '.pkl')['trajectory']
+
+        self.t_max = t_max
+        if not input_location.endswith('/'):
+            input_location += '/'
+        self.input_location = input_location
+        if not output_location.endswith('/'):
+            output_location += '/'
+        self.output_location = output_location
+
+        return
+
+    def mplot(self):
+        """Plot map frames from simulation data"""
+
+        fig = plt.figure(figsize=(16, 9))
+
+
+        for t in range(1, self.t_max+1):
+
+            print(t, self.t_max)
+
+            axa = plt.subplot2grid((2, 3), (0, 2))
+            axb = plt.subplot2grid((2, 3), (1, 2))
+            axa2 = axb.twinx()
+
+            axa.set_xlim([min(self.trj['forest_state_3_cells']), max(self.trj['forest_state_3_cells'])])
+            axa.set_ylim([min(self.trj['total_population']), max(self.trj['total_population'])])
+            axa2.set_xlim([1, max(self.trj['time'])])
+            axa2.set_ylim([0,
+                           max([max(self.trj['total_income_agriculture']),
+                                max(self.trj['total_income_ecosystem']),
+                                max(self.trj['total_income_trade'])
+                                ])
+                           ])
+
+            #print(self.trj.columns)
+            time = range(0, t)
+            population = self.trj['total_population'][0:t]
+            agg_income = self.trj['total_income_agriculture'][0:t]
+            trade_income = self.trj['total_income_trade'][0:t]
+            ess_income = self.trj['total_income_ecosystem'][0:t]
+            climax_forest = self.trj['forest_state_3_cells'][0:t]
+
+            ln1 = axa.plot(climax_forest, population, color='blue', label='total population')
+            ln1b = axa.scatter(climax_forest.values[-1], population.values[-1], color='blue')
+
+            axa.set_xlabel('climax forest cells')
+            axa.set_ylabel('total population')
+
+
+            ln2 = axa2.plot(time, agg_income, color='black', label='income from agriculture')
+            ln3 = axa2.plot(time, ess_income, color='green', label='income from ecosystem')
+            ln4 = axa2.plot(time, trade_income, color='red', label='income from trade')
+
+            lns = ln2 + ln3 + ln4
+            labs = [l.get_label() for l in lns]
+            axb.legend(lns, labs, loc=0)
+
+            forest_data = self.trj[['total_agriculture_cells',
+                                    'forest_state_1_cells',
+                                    'forest_state_2_cells',
+                                    'forest_state_3_cells']]
+            # print('before: \n', forest_data['forest_state_1_cells'])
+            forest_data['forest_state_1_cells'] = forest_data['forest_state_1_cells'].sub(forest_data['total_agriculture_cells'])
+            # print('after: \n', forest_data['forest_state_1_cells'])
+            forest_data[0:t].plot.area(ax=axb, stacked=True, color=['black', '#FF9900', '#66FF33', '#336600'])
+            axb.set_xlim([0, self.t_max])
+            axb.set_ylim([0, 102540])
+
+            ax = plt.subplot2grid((2, 3), (0, 0), colspan=2, rowspan=2)
+            location = self.input_location + 'geographic_data_{0:03d}.pkl'.format(t)
+
+
+            data = np.load(location)
+
+            forest = data['forest']
+
+            # plot forest state
+
+            shape = forest.shape
+
+            cropped = np.zeros(shape)
+            influenced = np.zeros(shape)
+
+            cropped_cells = data['cropped cells']
+            influenced_cells = data['cells in influence']
+
+            for city in range(len(data['x positions'])):
+                if len(cropped_cells[city]) > 0:
+                    influenced[influenced_cells[city][0], influenced_cells[city][1]] = 1
+                    cropped[cropped_cells[city][0], cropped_cells[city][1]] = 1
+
+            forest[cropped == 1] = 4
+
+            cmap1 = ListedColormap(['blue', '#FF9900', '#66FF33', '#336600', 'black'])
+            norm = Normalize(vmin=0, vmax=4)
+            image1 = ax.imshow(forest,
+                               cmap=cmap1,
+                               norm=norm,
+                               interpolation='none',
+                               alpha=0.9,
+                               zorder=0)
+
+            cmap2 = ListedColormap([(0, 0, 0), 'grey'])
+            image2 = ax.imshow(influenced,
+                               cmap=cmap2,
+                               alpha=0.3,
+                               zorder=0)
+
+            # plot trade network from adjacency matrix and settlement positions
+
+            for i, xi in enumerate(zip(data['y positions'], data['x positions'])):
+                for j, xj in enumerate(zip(data['y positions'], data['x positions'])):
+                    if data['adjacency'][i, j] == 1:
+                        plt.plot([xi[0], xj[0]], [xi[1], xj[1]], linewidth=0.5, color='black', zorder=1)
+
+            # plot settlements with population as color and rank as size
+
+            max_population = self.trj['max settlement population'].max()
+
+            cmap = plt.get_cmap('OrRd')
+            sct = plt.scatter(data['y positions'],
+                              data['x positions'],
+                              [4 * (x + 1) for x in data['rank']],
+                              c=data['population'],
+                              cmap=plt.get_cmap('OrRd'),
+                              edgecolors='black',
+                              zorder=2,
+                              vmax=max_population)
+            fig.colorbar(sct, label='population')
+            ax.set_ylim([shape[0], 0])
+            ax.set_xlim([0, shape[1]])
+
+            fig.tight_layout()
+            ol = self.output_location + 'frame_{0:03d}'.format(t)
+            fig.savefig(ol, dpi=150)
+            fig.clear()
+        try:
+            self.moviefy()
+        finally:
+            pass
+
+    def moviefy(self, rmold=False, namelist=['image_']):
+        # type: (str, str) -> object
+
+        framerate = 8
+        output_folder = self.output_location
+        input_folder = self.output_location
+
+        input_folder = '/' + input_folder.strip('/') + '/'
+        output_folder = '/' + output_folder.strip('/') + '/'
+
+        # namelist = ['AG_', 'bca_', 'es_',
+        #             'forest', 'influence_cropped_b_',
+        #             'npp_', 'pop_grad_', 'rain_',
+        #             'soil_deg_', 'trade_network_',
+        #             'waterflow_']
+
+        for name in namelist:
+            input_string = input_folder + name + "%03d.png"
+            del_string = input_folder + name + "*.png"
+            output_string = output_folder + name.strip('_') + '.mp4'
+            call(["ffmpeg", "-loglevel", "panic", "-y", "-hide_banner", "-r", repr(framerate), "-i", input_string, output_string])
+            if rmold:
+                for fl in glob.glob(del_string):
+                    os.remove(fl)
 
 
 class SnapshotVisuals(object):
@@ -151,8 +347,8 @@ class SnapshotVisuals(object):
 
         return self.figure
 
-class TrajectoryVisuals(object):
 
+class TrajectoryVisuals(object):
     def __init__(self, location):
         """
         Initialize the Visual class for trajectory data.
@@ -164,7 +360,7 @@ class TrajectoryVisuals(object):
                              for stat in statistics}
         for trj in self.trajectories.values():
             trj.columns = trj.columns.droplevel()
-            print trj.columns
+            print(trj.columns)
         self.run_indices = zip(*[i.tolist() for i in tmp.index.levels[:2]])
 
     def plot_trajectories(self, observables=[]):
@@ -172,6 +368,5 @@ class TrajectoryVisuals(object):
         for obs in observables:
             for key in self.trajectories.keys():
                 if key == 'mean':
-                    self.trajectories[key][[obs]].unstack(level=(0,1)).plot(legend=False)
+                    self.trajectories[key][[obs]].unstack(level=(0, 1)).plot(legend=False)
                     plt.show()
-

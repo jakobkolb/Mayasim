@@ -216,7 +216,7 @@ MODULE f90routines
                 drop_volume(i) = precipitation(land_list(1,i)+1,land_list(2,i)+1)
               END DO
               
-              DO step = 1,10
+              DO step = 1,100
                 !Build water level map from elevation + drop volume
                 Z = water + elevation
                 water = 0
