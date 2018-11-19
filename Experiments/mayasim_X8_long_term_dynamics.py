@@ -22,22 +22,21 @@ import numpy as np
 import sys
 import os
 import pandas as pd
+from pathlib import Path
 
 from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 from mayasim.visuals.custom_visuals import MapPlot
 
-test = True
-steps = 3000
-
-
 def run_function(d_severity=5.,
                  r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, filename='./'):
+                 kill_cropless=False,
+                 steps=3000,
+                 settlement_output_path=0, test=False):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -72,16 +71,20 @@ def run_function(d_severity=5.,
     kill_cropless: bool
         Switch to determine whether or not to kill cities
         without cropped cells.
-    filename: string
-        path to save the results to.
+    steps: int
+        number of steps to run the model
+    settlement_output_path
+        path to for spatial output data
+    test: bool
+        debug flag
     """
 
     # initialize the Model
 
     d_times = [[0, 2]]
 
-    m = Model(n, output_data_location=filename, debug=test)
-    if not filename.endswith('s0.pkl'):
+    m = Model(n=n, output_data_location=settlement_output_path, debug=test)
+    if settlement_output_path == 0:
         m.output_geographic_data = False
         m.output_settlement_data = False
 
@@ -97,32 +100,18 @@ def run_function(d_severity=5.,
     m.drought_times = d_times
     m.drought_severity = d_severity
 
-    # store initial conditions and Parameters
-
-    res = {"initials": pd.DataFrame({"Settlement X Possitions":
-                                     m.settlement_positions[0],
-                                     "Settlement Y Possitions":
-                                     m.settlement_positions[1],
-                                     "Population": m.population}),
-           "Parameters": pd.Series({key: getattr(m, key)
-                                    for key in dir(Parameters)
-                                    if not key.startswith('__')
-                                    and not callable(key)})}
-
     # run Model
 
-    m.run(steps)
+    if test:
+        m.run(4)
+    else:
+        m.run(steps)
 
     # Retrieve results
 
-    res["trajectory"] = m.get_trajectory()
+    macro_output = m.get_trajectory()
 
-    try:
-        with open(filename, 'wb') as dumpfile:
-            cp.dump(res, dumpfile)
-            return 1
-    except IOError:
-        return -1
+    return 1, [macro_output]
 
 
 
@@ -153,12 +142,11 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
-    global test
-    global steps
-
     # Parse switches from input
     if len(argv) > 1:
         test = int(argv[1])
+    else:
+        test = 1
     if len(argv) > 2:
         mode = int(argv[2])
     else:
@@ -189,17 +177,25 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "r_trade"}
-    if test == 0:
-        r_trade = [6000, 7000, 8000, 10000]
-        test = False
+    d_severity = [5.],
+    r_bca, r_es = [0.2], [0.0002]
+    population_control = [False]
+    n, crop_income_mode = [30], ['sum']
+    better_ess = [True]
+    kill_cropless = [False]
+    settlement_output_path = [0]
+
+    if test:
+        steps = [4]
+        r_trade = [6000]
     else:
-        r_trade = [6000, 7000]
-        test = True
+        r_trade = [6000, 7000, 8000, 10000]
+        steps = [3000]
 
-    param_combs = list(it.product(r_trade))
+    param_combs = list(it.product(d_severity, r_bca, r_es, r_trade,
+                                  population_control, n, crop_income_mode,
+                                  kill_cropless, steps, settlement_output_path, [test]))
 
-    steps = 3000 if not test else 250
     sample_size = 2 if not test else 1
 
     # Define names and callables for post processing
@@ -244,19 +240,30 @@ def run_experiment(argv):
     estimators3 = {"map_plots":
                    lambda fnames: plot_function(steps=steps, output_location=save_path_res, fnames=fnames)}
 
+    # Create dummy runfunc output to pass its shape to experiment handle
+
+    try:
+        if not Path(save_path_raw).exists():
+            Path(save_path_raw).mkdir(parents=True, exist_ok=True)
+        rf_output = pd.read_pickle(save_path_raw + 'rfof.pkl')
+    except FileNotFoundError:
+        params = list(param_combs[0])
+        params[-1] = True
+        rf_output = run_function(*params)[1]
+
     # Run computation and post processing.
 
-    handle = eh(sample_size=sample_size,
-                parameter_combinations=param_combs,
-                index=index,
-                path_raw=save_path_raw,
-                path_res=save_path_res,
-                use_kwargs=True)
+    data_generation_handle = eh(run_func=run_function,
+                                runfunc_output=rf_output,
+                                sample_size=sample_size,
+                                parameter_combinations=param_combs,
+                                path_raw=save_path_raw
+                                )
     print('mode is {}'.format(mode))
     if mode == 0:
-        handle.compute(run_func=run_function)
-        handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
+        data_generation_handle.compute()
+        # handle.resave(eva=estimators1, name=name1)
+        # handle.resave(eva=estimators2, name=name2)
     elif mode == 1:
         handle.resave(eva=estimators3, name=name3, no_output=True)
 
