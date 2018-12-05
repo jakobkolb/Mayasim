@@ -260,8 +260,7 @@ def run_experiment(argv):
                                 "final max cluster size",
                                 "final_climax_cells",
                                 "final_regrowth_cells",
-                                "final_cleared_cells",
-                                "final_aggriculture_cells"])
+                                "final_cleared_cells"])
                    }
 
     # Run computation and post processing.
