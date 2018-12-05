@@ -257,7 +257,11 @@ def run_experiment(argv):
                    lambda fnames:
                    foo(fnames, ["final population",
                                 "final trade links",
-                                "final max cluster size"])
+                                "final max cluster size",
+                                "final_climax_cells",
+                                "final_regrowth_cells",
+                                "final_cleared_cells",
+                                "final_aggriculture_cells"])
                    }
 
     # Run computation and post processing.
@@ -276,8 +280,8 @@ def run_experiment(argv):
         handle.compute(run_func=run_function)
         return 0
     elif mode == 2:
-        handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
+        # handle.resave(eva=estimators1, name=name1)
+        # handle.resave(eva=estimators2, name=name2)
         handle.resave(eva=estimators3, name=name3)
         return 0
 
