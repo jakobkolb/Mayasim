@@ -125,7 +125,7 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     res["final_climax_cells"] = np.sum(m.forest_state == 3)
     res["final_regrowth_cells"] = np.sum(m.forest_state == 2)
     res["final_cleared_cells"] = np.sum(m.forest_state == 1)
-    res["final_aggriculture_cells"] = m.total_agriculture_cells
+    res["final_aggriculture_cells"] = sum(m.number_cropped_cells)
 
     res["final population"] = sum(m.population)
     res["final trade links"] = sum(m.degree)/2.
