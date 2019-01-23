@@ -382,8 +382,8 @@ class Settlements:
             shift = 0.325
             self.birth_rate[self.population>=5000] = -(max_birth_rate - min_birth_rate)/10000. * self.population[self.population>=5000] + shift
         
-        print [type(pop) for pop in self.population]
-        #self.population += (self.birth_rate - self.death_rate)*self.population
+        # print [type(pop) for pop in self.population]
+        self.population += (self.birth_rate - self.death_rate)*self.population
         self.failed += np.sum(self.population<=0)
         self.population[self.population<=0] = 0
 
