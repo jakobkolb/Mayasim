@@ -1,4 +1,5 @@
-"""Experiment to test the correction of calculation of income from
+"""
+Experiment to test the correction of calculation of income from
 agriculture and ecosystem services.
 
 This experiment tests the influence of prefactors in income

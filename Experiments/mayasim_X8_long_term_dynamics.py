@@ -1,14 +1,18 @@
 """
-Experiment to test the influence of drought events.
-Drought events start once the civilisation has reached
-a 'complex society' state and vary in length and severity.
+Experiment to investigate the long term dynamics of the system.
+I suspect, that the MayaSim model shows oscillatory behavior in the
+long run and that Heckbert in his original paper only showed the first
+period of these oscillations.
 
-Therefore, starting point is at t = 150 where the model has
-reached a complex society state in all previous studies.
-We also use parameters for income from trade, agriculture and
-ecosystem services, that have previously proven to lead to
-some influence of precipitation variability on the state of the
-system.
+Therefore, I run the model without the precipitation variation as an
+external driver and only track the trajectories of the feedback loop
+between human influence and the ecosystems dynamic.
+
+I do this for different values of the possible income from trade, as
+I suspect that for large enough income from trade, the social system
+will support itself from trade income alone such that it will reach
+a stable 'complex society' state that does not (or only very little)
+depend on income from the ecosystem.
 """
 
 from __future__ import print_function
