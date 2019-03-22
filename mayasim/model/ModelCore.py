@@ -609,8 +609,9 @@ class ModelCore(Parameters):
                 u -= (self.ag_travel_cost * distance_from_city) / np.sqrt(self.population[c])
 
                 return u
-
-            utility = [util(x, y, city) for i, (x, y) in cells]
+            print(type(cells))
+            print(type(util))
+            utility = [util(x, y, city) for (x, y) in cells]
 
             # check, if they are available
             available = [True if self.occupied_cells[x, y] == 0
@@ -732,6 +733,7 @@ class ModelCore(Parameters):
                                + self.shift if value > 5000
                                else self.birth_rate_parameter
                                for value in self.population]
+
         # population grows according to effective growth rate
         self.population = [int((1. + self.birth_rate[i]
                                 - self.death_rate[i]) * value)
