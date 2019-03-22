@@ -609,8 +609,6 @@ class ModelCore(Parameters):
                 u -= (self.ag_travel_cost * distance_from_city) / np.sqrt(self.population[c])
 
                 return u
-            print(type(cells))
-            print(type(util))
             utility = [util(x, y, city) for (x, y) in cells]
 
             # check, if they are available
@@ -1277,7 +1275,7 @@ class ModelCore(Parameters):
                 self.get_eco_income(es)
                 self.evolve_soil_deg()
                 self.update_pop_gradient()
-                (built, lost) = self.build_routes
+                (built, lost) = self.build_routes()
                 self.get_comps()
                 self.get_centrality()
                 self.get_trade_income()
