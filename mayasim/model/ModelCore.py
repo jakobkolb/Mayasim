@@ -986,16 +986,16 @@ class ModelCore(Parameters):
         """
 
         def es_calc(data, city, source):
-            zcells = zip(*self.cells_in_influence[city])
+            cells = self.cells_in_influence[city]
             if self.eco_income_mode == 'sum':
-                rtn = self.r_es_sum * np.nansum([data[i] for i in zcells])
+                rtn = self.r_es_sum * np.nansum(data[cells[0],cells[1]])
             elif self.eco_income_mode == 'mean':
-                rtn = self.r_es_mean * np.nanmean([data[i] for i in zcells])
+                rtn = self.r_es_mean * np.nanmean(data[cells[0],cells[1]])
             else:
                 raise ValueError(f'eco income mode must be sum or mean but is {self.eco_income_mode}')
             if rtn < 0 and source ==  'forest state':
-                zcells = zip(*self.cells_in_influence[city])
-                print([(self.forest_state - 1)[i] for i in zcells])
+                cells = self.cells_in_influence[city]
+                print((self.forest_state - 1)[cells[0],cells[1]])
                 raise ValueError(f'es income from {source} is {rtn}')
             return rtn
 
