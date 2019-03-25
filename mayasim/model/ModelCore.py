@@ -181,7 +181,9 @@ class ModelCore(Parameters):
 
         # Forest
         self.forest_state = np.ones((self.rows, self.columns), dtype=int)
-        self.forest_state[np.isnan(self.elev)] = 0
+        # set non-land forest to 1 so that it does not result in negative
+        # ecosystem service income
+        self.forest_state[np.isnan(self.elev)] = 1
 
         self.forest_memory = np.zeros((self.rows, self.columns), dtype=int)
         self.cleared_land_neighbours = np.zeros((self.rows, self.columns),
@@ -983,23 +985,27 @@ class ModelCore(Parameters):
         influence of a settlement.
         """
 
+        def es_calc(data, city, source):
+            zcells = zip(*self.cells_in_influence[city])
+            if self.eco_income_mode == 'sum':
+                rtn = self.r_es_sum * np.nansum([data[i] for i in zcells])
+            elif self.eco_income_mode == 'mean':
+                rtn = self.r_es_mean * np.nanmean([data[i] for i in zcells])
+            else:
+                raise ValueError(f'eco income mode must be sum or mean but is {self.eco_income_mode}')
+            if rtn < 0 and source ==  'forest state':
+                zcells = zip(*self.cells_in_influence[city])
+                print([(self.forest_state - 1)[i] for i in zcells])
+                raise ValueError(f'es income from {source} is {rtn}')
+            return rtn
+
         for city in self.populated_cities:
-            if self.eco_income_mode == "mean":
-                self.eco_benefit[city] = self.r_es_mean \
-                                         * np.nanmean(es[self.cells_in_influence[city]])
-            elif self.eco_income_mode == "sum":
-                self.eco_benefit[city] = self.r_es_sum \
-                                         * np.nansum(es[self.cells_in_influence[city]])
-                self.s_es_ag[city] = self.r_es_sum \
-                                     * np.nansum(self.es_ag[self.cells_in_influence[city]])
-                self.s_es_wf[city] = self.r_es_sum \
-                                     * np.nansum(self.es_wf[self.cells_in_influence[city]])
-                self.s_es_fs[city] = self.r_es_sum \
-                                     * np.nansum(self.es_fs[self.cells_in_influence[city]])
-                self.s_es_sp[city] = self.r_es_sum \
-                                     * np.nansum(self.es_sp[self.cells_in_influence[city]])
-                self.s_es_pg[city] = self.r_es_sum \
-                                     * np.nansum(self.es_pg[self.cells_in_influence[city]])
+            self.eco_benefit[city] = es_calc(es, city, 'total')
+            self.s_es_ag[city] = es_calc(self.es_ag, city, 'agriculture')
+            self.s_es_wf[city] = es_calc(self.es_wf, city, 'waterflow')
+            self.s_es_fs[city] = es_calc(self.es_fs, city, 'forest state')
+            self.s_es_sp[city] = es_calc(self.es_sp, city, 'precipitation')
+            self.s_es_pg[city] = es_calc(self.es_pg, city, 'population gradient')
         try:
             self.eco_benefit[self.population == 0] = 0
         except IndexError:
@@ -1688,7 +1694,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import shutil
 
-    N = 10
+    N = 30
 
     # define saving location
     comment = "testing_version"
@@ -1706,16 +1712,35 @@ if __name__ == "__main__":
                       output_geographic_data=True,
                       output_data_location=location)
     # run Model
-    timesteps = 20
+    timesteps = 150
     model.crop_income_mode = 'sum'
-    model.r_es_sum = 0.0001
-    model.r_bca_sum = 0.1
-    model.population_control = 'False'
+    model.eco_income_mode = 'mean'
+    model.kill_cities_without_crops = False
+
     model.run(timesteps)
 
     trj = model.get_trajectory()
-    plot = trj[['lost trade links', 'built trade links',
-                'new settlements', 'killed settlements',
-                'total_trade_links']].plot()
+    trj.to_pickle('trj.pkl')
+
+    fig = plt.figure()
+    fig.set_figwidth(18)
+    ax1 = fig.add_subplot(1,2,1)
+    ax1b = ax1.twinx()
+    trj[['es_income_forest', 'es_income_waterflow',
+       'es_income_agricultural_productivity', 'es_income_precipitation',
+       'es_income_pop_density']].plot(ax=ax1)
+    trj[['total_cells_in_influence']].plot(ax=ax1b, color='k', legend=False)
+
+    ax2 = fig.add_subplot(1,2,2)
+    ax2b = ax2.twinx()
+    colors = ['#336600', '#66FF33', '#FF9900', 'black']
+    observables = ['forest_state_3_cells', 'forest_state_2_cells', 'forest_state_1_cells', 'total_agriculture_cells']
+    forest_data = trj[observables]
+    forest_data['forest_state_1_cells'] = forest_data['forest_state_1_cells'].sub(forest_data['total_agriculture_cells'])
+    forest_data.columns = ['climax forest', 'secondary regrowth', 'cleared land', 'agriculture cells']
+    forest_data.plot.area(stacked=True,
+                          ax=ax2,
+                          color=colors)
+    trj[['total_population']].plot(ax=ax2b, color='k', legend=False)
     plt.show()
-    plt.savefig(plot, location + 'plot')
+    plt.savefig(fig, location + 'plot')
