@@ -987,15 +987,18 @@ class ModelCore(Parameters):
 
         def es_calc(data, city, source):
             cells = self.cells_in_influence[city]
+            print(city)
+            print(cells)
             if self.eco_income_mode == 'sum':
                 rtn = self.r_es_sum * np.nansum(data[cells[0],cells[1]])
             elif self.eco_income_mode == 'mean':
                 rtn = self.r_es_mean * np.nanmean(data[cells[0],cells[1]])
             else:
                 raise ValueError(f'eco income mode must be sum or mean but is {self.eco_income_mode}')
-            if rtn < 0 and source ==  'forest state':
+            if rtn < 0 and source ==  'forest state' and self.better_ess == False:
                 cells = self.cells_in_influence[city]
                 print((self.forest_state - 1)[cells[0],cells[1]])
+                print(data[cells[0],cells[1]])
                 raise ValueError(f'es income from {source} is {rtn}')
             return rtn
 
@@ -1712,9 +1715,11 @@ if __name__ == "__main__":
                       output_geographic_data=True,
                       output_data_location=location)
     # run Model
-    timesteps = 150
+    timesteps = 5
     model.crop_income_mode = 'sum'
-    model.eco_income_mode = 'mean'
+    model.eco_income_mode = 'sum'
+    model.r_es_sum = 0.1
+    model.r_bca_sum = 0.25
     model.kill_cities_without_crops = False
 
     model.run(timesteps)
@@ -1729,7 +1734,8 @@ if __name__ == "__main__":
     trj[['es_income_forest', 'es_income_waterflow',
        'es_income_agricultural_productivity', 'es_income_precipitation',
        'es_income_pop_density']].plot(ax=ax1)
-    trj[['total_cells_in_influence']].plot(ax=ax1b, color='k', legend=False)
+    trj[['total_income_ecosystem']].plot(style='--', ax=ax1b, color='k', legend=False)
+    trj[['total_income_agriculture']].plot(style='.-', ax=ax1b, color='k', legend=False)
 
     ax2 = fig.add_subplot(1,2,2)
     ax2b = ax2.twinx()
