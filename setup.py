@@ -19,7 +19,7 @@ setup(name="mayasim",
       packages=["mayasim"],
       include_package_data=True,
       install_requires=[
-          "numpy==1.11.0",
+          "numpy==1.13.0",
           "pandas==0.22.0",
           "pymofa @ git+https://github.com/jakobkolb/pymofa@old_version",
           "networkx",
