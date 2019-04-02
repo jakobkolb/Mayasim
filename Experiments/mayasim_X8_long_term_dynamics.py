@@ -1,17 +1,17 @@
 """
-Experiment to test the influence of drought events.
-Drought events start once the civilisation has reached
-a 'complex society' state and vary in length and severity.
+Experiment to investigate the long term dynamics of the model. Running it with
+different possible incomes from trade to see whether there are different long
+term dynamics depending on it. Previous experiments focused on the first
+overshoot and collapse cycle, this one will look at the long term convergence
+and the transient dynamics in between.
 
-Therefore, starting point is at t = 150 where the model has
-reached a complex society state in all previous studies.
-We also use parameters for income from trade, agriculture and
-ecosystem services, that have previously proven to lead to
-some influence of precipitation variability on the state of the
-system.
+Running the model with r_trade = 6K, 7K, 8K, 10K for t=3000 steps and otherwise
+default parameter settings.
 """
 
 from __future__ import print_function
+import sys
+import os
 try:
     import cPickle as cp
 except ImportError:
@@ -19,8 +19,6 @@ except ImportError:
 import getpass
 import itertools as it
 import numpy as np
-import sys
-import os
 import pandas as pd
 
 from pymofa.experiment_handling import experiment_handling as eh
@@ -166,7 +164,7 @@ def run_experiment(argv):
 
     # Generate paths according to switches and user name
 
-    test_folder = ['', 'test_output/'][int(test)]
+    test_folder = 'test_output/' if test else ''
     experiment_folder = 'X8_longterm_dynamics/'
     raw = 'raw_data/'
     res = 'results/'
@@ -214,7 +212,7 @@ def run_experiment(argv):
                    lambda fnames:
                    pd.concat([np.load(f)["trajectory"]
                               for f in fnames]).groupby(level=0).std()
-                   }
+                  }
     name2 = "all_trajectories"
 
     estimators2 = {"trajectory_list":
@@ -242,7 +240,10 @@ def run_experiment(argv):
 
     name3 = "FramePlots"
     estimators3 = {"map_plots":
-                   lambda fnames: plot_function(steps=steps, output_location=save_path_res, fnames=fnames)}
+                   lambda fnames: plot_function(steps=steps,
+                                                output_location=save_path_res,
+                                                fnames=fnames)
+                  }
 
     # Run computation and post processing.
 
