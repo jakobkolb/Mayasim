@@ -187,17 +187,19 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "r_trade"}
+    index = {0: "r_trade", 1: "r_es"}
     if test == 0:
         r_trade = [6000, 7000, 8000, 10000]
+        r_es = [0.0002, 0.0001]
         test = False
     else:
         r_trade = [6000, 7000]
+        r_es = [0.0002, 0.0001]
         test = True
 
-    param_combs = list(it.product(r_trade))
+    param_combs = list(it.product(r_trade, r_es))
 
-    steps = 3000 if not test else 250
+    steps = 1000 if not test else 10
     sample_size = 2 if not test else 1
 
     # Define names and callables for post processing
@@ -218,7 +220,8 @@ def run_experiment(argv):
     estimators2 = {"trajectory_list":
                    lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
-    def plot_function(steps=1, output_location='./', fnames='./'):
+    def plot_function(steps=1, input_location='./', output_location='./', fnames='./'):
+        print(input_location)
         print(output_location)
         print(fnames)
         input_loc = fnames[0]
@@ -241,6 +244,7 @@ def run_experiment(argv):
     name3 = "FramePlots"
     estimators3 = {"map_plots":
                    lambda fnames: plot_function(steps=steps,
+                                                input_location=save_path_raw,
                                                 output_location=save_path_res,
                                                 fnames=fnames)
                   }
@@ -260,6 +264,10 @@ def run_experiment(argv):
         handle.resave(eva=estimators2, name=name2)
     elif mode == 1:
         handle.resave(eva=estimators3, name=name3, no_output=True)
+    elif mode == 2:
+        handle.resave(eva=estimators1, name=name1)
+        handle.resave(eva=estimators2, name=name2)
+
 
     return 1
 
