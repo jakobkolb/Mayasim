@@ -2,6 +2,8 @@ MODULE f90routines
 
       IMPLICIT NONE
 
+      PUBLIC f90waterflow
+
       CONTAINS
       SUBROUTINE f90sparsecentrality(IC, AA, JA, M, N, NNZ, centrality_out)
                 INTEGER, INTENT(in)                     :: M, N, NNZ
@@ -229,25 +231,23 @@ MODULE f90routines
                   water_elev_old = 10000
                   k = 0
                   DO j = 1,9
-                    !find cell (x_new,y_new) with lowest water level in neighbourhood of drop
-                    !make sure that indices stay whithin bounds!!
-                    x_tmp = MOD(x + neighbours(1,j)-1,max_x)+1
-                    y_tmp = MOD(y + neighbours(2,j)-1,max_y)+1
-                    !IF(x_tmp .NE. x + neighbours(1,j) .OR. y_tmp .NE. y + neighbours(2,j)) THEN
-                    !        WRITE(*,*) 'outbound', max_x, max_y
-                    !        WRITE(*,*) x_tmp, x + neighbours(1,j)
-                    !        WRITE(*,*) y_tmp, y + neighbours(2,j)
-                    !ENDIF
-                    !IF(x_tmp == 0 .OR. y_tmp == 0) THEN
-                    !        WRITE(*,*) 'ZEROOOO!!!'
-                    !ENDIF
-                    water_elev_new = Z(x_tmp,y_tmp)
-                    IF (water_elev_new < water_elev_old) THEN
-                        x_new = x_tmp
-                        y_new = y_tmp
-                        water_elev_old = water_elev_new
-                        k = j
+                    ! find cell (x_new,y_new) with lowest water level in
+                    ! neighbourhood of drop
+                    ! make sure that indices stay whithin bounds!!
+                    x_tmp = x + neighbours(1,j)
+                    y_tmp = y + neighbours(2,j)
+                    IF(x_tmp > max_x .OR. y_tmp > max_y .OR. x_tmp < 1 .OR. y_tmp < 1) THEN
+                        ! WRITE(*,*) 'outbound', x_tmp, y_tmp
+                    ELSE
+                        water_elev_new = Z(x_tmp,y_tmp)
+                        IF (water_elev_new < water_elev_old) THEN
+                            x_new = x_tmp
+                            y_new = y_tmp
+                            water_elev_old = water_elev_new
+                            k = j
+                        ENDIF
                     ENDIF
+
                   END DO
                   !move drop to cell with lovest water level
                   drop_coordinates(1,i) = x_new
@@ -268,5 +268,3 @@ MODULE f90routines
       END SUBROUTINE f90waterflow
 
 END MODULE f90routines
-
-
