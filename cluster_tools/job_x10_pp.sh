@@ -22,4 +22,4 @@ echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
 cd ../Experiments/
-srun -n $SLURM_NTASKS python mayasim_X9_stability_analysis.py 0 2
+srun -n $SLURM_NTASKS python mayasim_X10_generate_trajectories.py 0 2
