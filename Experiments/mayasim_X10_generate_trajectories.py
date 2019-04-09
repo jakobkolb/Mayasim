@@ -171,7 +171,7 @@ def run_experiment(argv):
     # Generate paths according to switches and user name
 
     test_folder = 'test_output/' if test else ''
-    experiment_folder = 'X8_longterm_dynamics/'
+    experiment_folder = 'X10_trajectories/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -268,6 +268,7 @@ def run_experiment(argv):
         i0 = i-i_min
         i1 = i0*di
         i2 = (i0+1)*di
+        print(i1, i2, di, la, irange)
         if i < i_max:
             return array[i1:i2]
         if i == i_max:
