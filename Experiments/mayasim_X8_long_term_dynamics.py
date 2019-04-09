@@ -190,7 +190,7 @@ def run_experiment(argv):
     index = {0: "r_trade", 1: "r_es"}
     if test == 0:
         r_trade = [6000, 7000, 8000, 10000]
-        r_es = [0.0002, 0.0001]
+        r_es = [0.0002, 0.00018, 0.00016, 0.00015, 0.00014, 0.00013, 0.00012, 0.0001]
         test = False
     else:
         r_trade = [6000, 7000]
@@ -238,12 +238,40 @@ def run_experiment(argv):
                      output_location=output_location)
 
         mp.mplot()
+        return 1
+
+    def movie_function(steps=1, input_location='./', output_location='./',
+                       fnames='./'):
+
+        print(input_location)
+        print(output_location)
+        print(fnames)
+        input_loc = fnames[0]
+        if input_loc.endswith('.pkl'):
+            input_loc = input_loc[:-4]
+
+        tail = input_loc.rsplit('/', 1)[1]
+        output_location += tail
+        print(tail)
+        if not os.path.isdir(output_location):
+            os.mkdir(output_location)
+        mp = MapPlot(t_max=steps,
+                     input_location=input_loc,
+                     output_location=output_location)
+
         mp.moviefy(namelist=['frame_'])
         return 1
 
     name3 = "FramePlots"
     estimators3 = {"map_plots":
                    lambda fnames: plot_function(steps=steps,
+                                                input_location=save_path_raw,
+                                                output_location=save_path_res,
+                                                fnames=fnames)
+                  }
+    name4 = "Movie"
+    estimators4 = {"map_plots":
+                   lambda fnames: movie_function(steps=steps,
                                                 input_location=save_path_raw,
                                                 output_location=save_path_res,
                                                 fnames=fnames)
@@ -265,8 +293,7 @@ def run_experiment(argv):
     elif mode == 1:
         handle.resave(eva=estimators3, name=name3, no_output=True)
     elif mode == 2:
-        handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
+        handle.resave(eva=estimators4, name=name4, no_output=True)
 
 
     return 1
