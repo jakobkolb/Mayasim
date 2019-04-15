@@ -182,10 +182,10 @@ def run_experiment(argv):
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
         save_path_raw = \
-            "/home/jakob/Project_MayaSim/Python/" \
+            "/home/jakob/Project_MayaSim/" \
             "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
         save_path_res = \
-            "/home/jakob/Project_MayaSim/Python/" \
+            "/home/jakob/Project_MayaSim/" \
             "output_data/{}{}{}".format(test_folder, experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
@@ -195,8 +195,8 @@ def run_experiment(argv):
 
     index = {0: "r_trade", 1: "r_es"}
     if test == 0:
-        r_trade =   [round(x,5) for x in np.arange(6000,10000,500)]
-        r_es =      [round(x,5) for x in np.arange(0.00008,0.00018,0.00001)]
+        r_trade =   [round(x,5) for x in np.arange(4000,10000,500)]
+        r_es =      [round(x,5) for x in np.arange(0.00004,0.00018,0.00001)]
         test = False
     else:
         r_trade = [6000, 7000]
@@ -254,6 +254,37 @@ def run_experiment(argv):
                                                 output_location=save_path_res,
                                                 fnames=fnames)
                   }
+    def movie_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
+                       population_control=False,
+                       n=30, crop_income_mode='sum',
+                       better_ess=True,
+                       kill_cropless=False, filename='./'):
+        from subprocess import call
+        framerate = 10
+        if filename.endswith('s0.pkl'):
+            input_loc = filename.replace('raw_data', 'results')[:-4]
+            tail = input_loc.rsplit('/', 1)[1]
+            output_location = input_loc
+            if os.path.isdir(input_loc):
+                input_string = input_loc + "/frame_%03d.png"
+                output_string = f'{input_loc}/{tail}.mp4'
+                cstring = f'ffmpeg -loglevel panic -y -hide_banner -r {repr(framerate)} -i {input_string} {output_string}'
+                print(f'Make movie from {tail}')
+                call(["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic",
+                      "-r", repr(framerate), "-i", input_string, output_string])
+            else:
+                print(f'Make NO movie from {tail}')
+            return 1
+        else:
+            return 1
+
+    name4 = "RenderMovies"
+    estimators4 = {"render_movies":
+                   lambda fnames: movie_function(steps=steps,
+                                                 input_location=save_path_raw,
+                                                 output_location=save_path_res,
+                                                 fnames=fnames)
+                  }
 
     # Run computation and post processing.
 
@@ -283,13 +314,13 @@ def run_experiment(argv):
     print('mode is {}'.format(mode))
     if mode == 0:
         handle.compute(run_func=run_function)
-        handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
     elif mode == 1:
         handle.resave(eva=estimators3, name=name3, no_output=True)
     elif mode == 2:
         handle.resave(eva=estimators1, name=name1)
         handle.resave(eva=estimators2, name=name2)
+    elif mode == 3:
+        handle.compute(run_func=movie_function)
 
 
     return 1

@@ -7,7 +7,7 @@
 #SBATCH --account=copan
 #SBATCH --nodes=3
 #SBATCH --tasks-per-node=7
-#SBATCH --array=1-80
+#SBATCH --array=1-120
 
 module load compiler/intel/16.0.0
 module load hpc/2015 anaconda/2.3.0

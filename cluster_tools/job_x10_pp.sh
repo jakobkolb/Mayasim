@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --qos=short
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --job-name=Maya_9_eval
-#SBATCH --output=ms_x9_eval_%j.out
-#SBATCH --error=ms_x9_eval_%j.err
+#SBATCH --job-name=Maya_10_pp
+#SBATCH --output=ms_x10_pp_%j.out
+#SBATCH --error=ms_x10_pp_%j.err
 #SBATCH --account=copan
 #SBATCH --nodes=1
 #SBATCH --tasks-per-node=4
