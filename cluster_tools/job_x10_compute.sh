@@ -5,9 +5,9 @@
 #SBATCH --output=ms_x10_compute_out/%j.out
 #SBATCH --error=ms_x10_compute_err/%j.err
 #SBATCH --account=copan
-#SBATCH --nodes=3
-#SBATCH --tasks-per-node=7
-#SBATCH --array=1-120
+#SBATCH --nodes=2
+#SBATCH --tasks-per-node=16
+#SBATCH --array=1-3564
 
 module load compiler/intel/16.0.0
 module load hpc/2015 anaconda/2.3.0

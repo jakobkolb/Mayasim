@@ -195,8 +195,8 @@ def run_experiment(argv):
 
     index = {0: "r_trade", 1: "r_es"}
     if test == 0:
-        r_trade =   [round(x,5) for x in np.arange(4000,10000,500)]
-        r_es =      [round(x,5) for x in np.arange(0.00004,0.00018,0.00001)]
+        r_trade =   [round(x,5) for x in np.arange(4000,9400,100)]
+        r_es =      [round(x,5) for x in np.arange(0.00005,0.00018,0.000002)]
         test = False
     else:
         r_trade = [6000, 7000]
@@ -206,7 +206,7 @@ def run_experiment(argv):
     param_combs = list(it.product(r_trade, r_es))
 
     steps = 2000 if not test else 50
-    sample_size = 20 if not test else 1
+    sample_size = 31 if not test else 1
 
     # Define names and callables for post processing
 
