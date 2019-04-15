@@ -9,8 +9,8 @@ class ModelParameters(object):
     output_level = 'spatial'   # either 'spatial' or 'trajectory'
 
     # INITIAL NUMBER OF SETTLEMENTS
-    min_init_inhabitants = 1000	   # 1000
-    max_init_inhabitants = 2000    # 2000
+    min_init_inhabitants = 1000     # 1000
+    max_init_inhabitants = 2000     # 2000
 
     timesteps = 325			# 325
 
@@ -109,7 +109,7 @@ class ModelParameters(object):
     r_bca_mean = 1.1  # 1.1 - weight agriculture income for mean calculation
     r_bca_sum = 0.25  # 0.25 - weight agr income for sum calculation
     r_es_mean = 10.   # 10. - weight ecosystem services for mean calculation
-    r_es_sum = .0002  # 0.0002  - weight ecosys services for sum calculation
+    r_es_sum = .0001  # 0.0002  - weight ecosys services for sum calculation
     r_trade = 6000.   # 6000. weight trade income
 
     # DEMOGRAPHIC PARAMETERS
