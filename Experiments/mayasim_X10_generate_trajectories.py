@@ -15,6 +15,7 @@ analysis of frequency of oscillations from the trajectories.
 
 from __future__ import print_function
 import sys
+import argparse
 import os
 try:
     import cPickle as cp
@@ -30,15 +31,13 @@ from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 from mayasim.visuals.custom_visuals import MapPlot
 
-test = True
-steps = 2000
-
+STEPS = 2000
 
 def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, filename='./'):
+                 kill_cropless=False, test=False, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -80,9 +79,8 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
     # initialize the Model
 
     m = Model(n, output_data_location=filename, debug=test)
-    if not filename.endswith('s0.pkl'):
-        m.output_geographic_data = False
-        m.output_settlement_data = False
+    m.output_geographic_data = False
+    m.output_settlement_data = False
 
     m.population_control = population_control
     m.crop_income_mode = crop_income_mode
@@ -108,7 +106,7 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
 
     # run Model
 
-    m.run(steps)
+    m.run(STEPS)
 
     # Retrieve results
 
@@ -122,7 +120,7 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
         return -1
 
 
-def run_experiment(argv):
+def run_experiment(test, mode, job_id, max_id):
     """
     Take arv input variables and run sub_experiment accordingly.
     This happens in five steps:
@@ -148,25 +146,7 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
-    global test
-    global steps
-
-    # Parse switches from input
-    if len(argv) > 1:
-        test = int(argv[1])
-    if len(argv) > 2:
-        mode = int(argv[2])
-    else:
-        mode = None
-    if len(argv) > 3:
-        job_id = int(argv[3])
-    else:
-        job_id = 1
-    if len(argv) > 4:
-        max_id = int(argv[4])
-    else:
-        max_id = 1
-
+    global STEPS
 
     # Generate paths according to switches and user name
 
@@ -193,19 +173,17 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "r_trade", 1: "r_es"}
-    if test == 0:
-        r_trade =   [round(x,5) for x in np.arange(4000,9400,100)]
-        r_es =      [round(x,5) for x in np.arange(0.00005,0.00018,0.000002)]
-        test = False
-    else:
+    index = {0: "r_trade", 1: "r_es", 2: "test"}
+    if test:
         r_trade = [6000, 7000]
         r_es = [0.0002, 0.0001]
-        test = True
+    else:
+        r_trade =   [round(x,5) for x in np.arange(4000,9400,100)]
+        r_es =      [round(x,5) for x in np.arange(0.00005,0.00018,0.000002)]
 
-    param_combs = list(it.product(r_trade, r_es))
+    param_combs = list(it.product(r_trade, r_es, [test]))
 
-    steps = 2000 if not test else 50
+    STEPS = 2000 if not test else 50
     sample_size = 31 if not test else 1
 
     # Define names and callables for post processing
@@ -249,7 +227,7 @@ def run_experiment(argv):
 
     name3 = "FramePlots"
     estimators3 = {"map_plots":
-                   lambda fnames: plot_function(steps=steps,
+                   lambda fnames: plot_function(steps=STEPS,
                                                 input_location=save_path_raw,
                                                 output_location=save_path_res,
                                                 fnames=fnames)
@@ -302,8 +280,10 @@ def run_experiment(argv):
         print(i1, i2, di, la, irange)
         if i < i_max:
             return array[i1:i2]
-        if i == i_max:
+        elif i == i_max:
             return array[i1:]
+        else:
+            return 0
 
     handle = eh(sample_size=sample_size,
                 parameter_combinations=chunk_arr(job_id, param_combs, 1, max_id),
@@ -322,10 +302,34 @@ def run_experiment(argv):
     elif mode == 3:
         handle.compute(run_func=movie_function)
 
-
     return 1
 
 
 if __name__ == '__main__':
 
-    run_experiment(sys.argv)
+    HELP_MODE = """switch to set mode: 0:computation,
+    1:map plots, 2:post processing of run data,
+    3:make movies from map plots"""
+
+    # parse command line arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--testing", dest='test', action='store_true',
+                    help="switch to for production vs. testing mode")
+    ap.add_argument("--production", dest='test', action='store_false',
+                    help="switch to for production vs. testing mode")
+    ap.set_defaults(test=False)
+    ap.add_argument("-m", "--mode", type=int,
+                    help=HELP_MODE,
+                    default=0,
+                    choices=[0,1,2,3])
+    ap.add_argument("-i", "--job_id", type=int,
+                    help="job id in case of array job",
+                    default=1)
+    ap.add_argument("-N", "--max_id", type=int,
+                    help="max job id in case of array job",
+                    default=1)
+    args = vars(ap.parse_args())
+
+    # run experiment
+    print(args)
+    run_experiment(**args)
