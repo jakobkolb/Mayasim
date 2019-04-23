@@ -1,8 +1,8 @@
 """
 Experiment to test the influence of drought events.
 Drought events start once the civilisation has reached
-a 'complex society' state (after 200 years) and vary 
-in length and severity from 0 to 100 years and 0 to 100% 
+a 'complex society' state (after 200 years) and vary
+in length and severity from 0 to 100 years and 0 to 100%
 less precipitation.
 
 Therefore, starting point is at t = 200 where the model has
@@ -13,7 +13,7 @@ some influence of precipitation variability on the state of the
 system.
 
 Also, we vary the parameter for income from trade so see, if
-there is a certain parameter value, that results in 
+there is a certain parameter value, that results in
 stable complex society for some drought events and collapse for others.
 """
 
@@ -35,11 +35,11 @@ from mayasim.model.ModelParameters import ModelParameters as Parameters
 test = True
 
 def run_function(d_start=200, d_length=20, d_severity=50.,
-                 r_bca=0.2, r_es=0.0002, r_trade=6000,
+                 r_bca=0.2, r_es=0.00012, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=500, filename='./'):
+                 kill_cropless=False, steps=1000, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -208,26 +208,47 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "d_length", 1: "d_severity", 2: "r_trade"}
     if test == 0:
+        test = False
         d_length = list(range(0, 105, 5))
         d_severity = list(range(0, 105, 5))
-        r_trade = list(range(4000, 11000, 2000))
-        test = False
+
+        # parameters for high income from trade
+        # d_length = list(range(0, 105, 5))
+        # d_severity = list(range(0, 105, 5))
+        r_trade = [8000] # hight trade oncome generates stable complex state
+        t_start = [400] # start drought after system has settled
+        param_combs_high = list(it.product(d_length, d_severity, r_trade,
+                                           t_start))
+
+        # parameters for low income from trade
+        # d_length = list(range(0, 105, 5))
+        # d_severity = list(range(0, 105, 5))
+        r_trade = [6000] # low trade income generates oscillating states
+        t_start = [400, 550] # One at first low, one at first hight after
+                             # overshoot
+        param_combs_low = list(it.product(d_length, d_severity, r_trade,
+                                          t_start))
+
+        # put all parameters together
+        param_combs = param_combs_high + param_combs_low
     else:
         d_length = [20]
         d_severity = [0., 60.]
         r_trade = [6000]
+        t_start = [350] # start drought after system has settled
         test = True
+        param_combs = list(it.product(d_length, d_severity, r_trade, t_start))
 
-    param_combs = list(it.product(d_length, d_severity, r_trade))
-    print('computing results for {} parameter combinations'.format(len(param_combs)))
+    index = {0: "d_length", 1: "d_severity", 2: "r_trade", 3: "d_start"}
 
+    print(f'computing results for {len(param_combs)} parameter combinations')
+    print(len(param_combs), max_id)
     if len(param_combs) % max_id != 0:
-        print('number of jobs ({}) has to be multiple of max_id ({})!!'.format(len(param_combs), max_id))
+        print(f'number of jobs ({len(param_combs)}) has to be multiple of max_id ({max_id})!!')
         exit(-1)
 
-    sample_size = 20 if not test else 3
+    sample_size = 15 if not test else 3
 
     # Define names and callables for post processing
 
@@ -279,8 +300,8 @@ def run_experiment(argv):
         handle.compute(run_func=run_function)
         return 0
     elif mode == 2:
-        # handle.resave(eva=estimators1, name=name1)
-        # handle.resave(eva=estimators2, name=name2)
+        handle.resave(eva=estimators1, name=name1)
+        handle.resave(eva=estimators2, name=name2)
         handle.resave(eva=estimators3, name=name3)
         return 0
 
