@@ -19,16 +19,15 @@ setup(name="mayasim",
       packages=["mayasim"],
       include_package_data=True,
       install_requires=[
-            "numpy>=1.11.0",
-            "pymofa>=0.1.0",
-            "networkx",
-            "pickleshare",
-            "scipy",
-            "matplotlib",
-            "pandas"
+          "numpy==1.13.0",
+          "pandas==0.22.0",
+          "pymofa @ git+https://github.com/jakobkolb/pymofa@old_version",
+          "networkx",
+          "pickleshare",
+          "scipy",
+          "matplotlib"
 
       ],
-      dependency_links=['https://github.com/jakobkolb/pymofa/tarball/master#egg=pymofa-0.1.0'],
       # see http://stackoverflow.com/questions/15869473/what-is-the-advantage-
       # of-setting-zip-safe-to-true-when-packaging-a-python-projec
       zip_safe=False)

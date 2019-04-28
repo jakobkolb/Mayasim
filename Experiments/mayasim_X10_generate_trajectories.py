@@ -1,16 +1,21 @@
 """
-Experiment to investigate the long term dynamics of the model. Running it with
-different possible incomes from trade to see whether there are different long
-term dynamics depending on it. Previous experiments focused on the first
-overshoot and collapse cycle, this one will look at the long term convergence
-and the transient dynamics in between.
+Experiment to generate trajectories for different possible of income
+from ecosystem and trade. These trajectories will then be used to
+analyze the bifurcation parameter of the model. Also, they can be
+used to find the optimal values for r_trade and r_es that reproduce
+the original behavior of the model in Heckberts publication.
 
-Running the model with r_trade = 6K, 7K, 8K, 10K for t=3000 steps and otherwise
-default parameter settings.
+Parameters that are varied are
+1) r_trade
+2) r_es
+The model runs for t=2000 time steps as I hope that this will be short enough
+to finish on the cluster in 24h and long enough to provide enough data for the
+analysis of frequency of oscillations from the trajectories.
 """
 
 from __future__ import print_function
 import sys
+import argparse
 import os
 try:
     import cPickle as cp
@@ -20,21 +25,19 @@ import getpass
 import itertools as it
 import numpy as np
 import pandas as pd
-from pathlib import Path
 
 from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 from mayasim.visuals.custom_visuals import MapPlot
 
-def run_function(d_severity=5.,
-                 r_bca=0.2, r_es=0.0002, r_trade=6000,
+STEPS = 2000
+
+def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False,
-                 steps=3000,
-                 settlement_output_path=0, test=False):
+                 kill_cropless=False, test=False, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -69,22 +72,15 @@ def run_function(d_severity=5.,
     kill_cropless: bool
         Switch to determine whether or not to kill cities
         without cropped cells.
-    steps: int
-        number of steps to run the model
-    settlement_output_path
-        path to for spatial output data
-    test: bool
-        debug flag
+    filename: string
+        path to save the results to.
     """
 
     # initialize the Model
 
-    d_times = [[0, 2]]
-
-    m = Model(n=n, output_data_location=settlement_output_path, debug=test)
-    if settlement_output_path == 0:
-        m.output_geographic_data = False
-        m.output_settlement_data = False
+    m = Model(n, output_data_location=filename, debug=test)
+    m.output_geographic_data = False
+    m.output_settlement_data = False
 
     m.population_control = population_control
     m.crop_income_mode = crop_income_mode
@@ -95,26 +91,36 @@ def run_function(d_severity=5.,
     m.kill_cities_without_crops = kill_cropless
 
     m.precipitation_modulation = False
-    m.drought_times = d_times
-    m.drought_severity = d_severity
+
+    # store initial conditions and Parameters
+
+    res = {"initials": pd.DataFrame({"Settlement X Possitions":
+                                     m.settlement_positions[0],
+                                     "Settlement Y Possitions":
+                                     m.settlement_positions[1],
+                                     "Population": m.population}),
+           "Parameters": pd.Series({key: getattr(m, key)
+                                    for key in dir(Parameters)
+                                    if not key.startswith('__')
+                                    and not callable(key)})}
 
     # run Model
 
-    if test:
-        m.run(4)
-    else:
-        m.run(steps)
+    m.run(STEPS)
 
     # Retrieve results
 
-    macro_output = m.get_trajectory()
+    res["trajectory"] = m.get_trajectory()
 
-    return 1, [macro_output]
+    try:
+        with open(filename, 'wb') as dumpfile:
+            cp.dump(res, dumpfile)
+            return 1
+    except IOError:
+        return -1
 
 
-
-
-def run_experiment(argv):
+def run_experiment(test, mode, job_id, max_id):
     """
     Take arv input variables and run sub_experiment accordingly.
     This happens in five steps:
@@ -140,20 +146,12 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
-    # Parse switches from input
-    if len(argv) > 1:
-        test = int(argv[1])
-    else:
-        test = 1
-    if len(argv) > 2:
-        mode = int(argv[2])
-    else:
-        mode = 0
+    global STEPS
 
     # Generate paths according to switches and user name
 
     test_folder = 'test_output/' if test else ''
-    experiment_folder = 'X8_longterm_dynamics/'
+    experiment_folder = 'X10_trajectories/'
     raw = 'raw_data/'
     res = 'results/'
 
@@ -164,10 +162,10 @@ def run_experiment(argv):
             test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
         save_path_raw = \
-            "/home/jakob/Project_MayaSim/Python/" \
+            "/home/jakob/Project_MayaSim/" \
             "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
         save_path_res = \
-            "/home/jakob/Project_MayaSim/Python/" \
+            "/home/jakob/Project_MayaSim/" \
             "output_data/{}{}{}".format(test_folder, experiment_folder, res)
     else:
         save_path_res = './{}'.format(res)
@@ -175,20 +173,18 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    index = {0: "r_trade", 1: "r_es"}
-    if test == 0:
-        r_trade = [6000, 7000, 8000, 10000]
-        r_es = [0.0002, 0.00018, 0.00016, 0.00015, 0.00014, 0.00013, 0.00012, 0.0001]
-        test = False
-    else:
+    index = {0: "r_trade", 1: "r_es", 2: "test"}
+    if test:
         r_trade = [6000, 7000]
         r_es = [0.0002, 0.0001]
-        test = True
+    else:
+        r_trade =   [round(x,5) for x in np.arange(4000,9400,100)]
+        r_es =      [round(x,5) for x in np.arange(0.00005,0.00018,0.000002)]
 
-    param_combs = list(it.product(r_trade, r_es))
+    param_combs = list(it.product(r_trade, r_es, [test]))
 
-    steps = 1000 if not test else 10
-    sample_size = 2 if not test else 1
+    STEPS = 2000 if not test else 50
+    sample_size = 31 if not test else 1
 
     # Define names and callables for post processing
 
@@ -226,78 +222,114 @@ def run_experiment(argv):
                      output_location=output_location)
 
         mp.mplot()
-        return 1
-
-    def movie_function(steps=1, input_location='./', output_location='./',
-                       fnames='./'):
-
-        print(input_location)
-        print(output_location)
-        print(fnames)
-        input_loc = fnames[0]
-        if input_loc.endswith('.pkl'):
-            input_loc = input_loc[:-4]
-
-        tail = input_loc.rsplit('/', 1)[1]
-        output_location += tail
-        print(tail)
-        if not os.path.isdir(output_location):
-            os.mkdir(output_location)
-        mp = MapPlot(t_max=steps,
-                     input_location=input_loc,
-                     output_location=output_location)
-
         mp.moviefy(namelist=['frame_'])
         return 1
 
     name3 = "FramePlots"
     estimators3 = {"map_plots":
-                   lambda fnames: plot_function(steps=steps,
+                   lambda fnames: plot_function(steps=STEPS,
                                                 input_location=save_path_raw,
                                                 output_location=save_path_res,
                                                 fnames=fnames)
                   }
-    name4 = "Movie"
-    estimators4 = {"map_plots":
+    def movie_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
+                       population_control=False,
+                       n=30, crop_income_mode='sum',
+                       better_ess=True,
+                       kill_cropless=False, filename='./'):
+        from subprocess import call
+        framerate = 10
+        if filename.endswith('s0.pkl'):
+            input_loc = filename.replace('raw_data', 'results')[:-4]
+            tail = input_loc.rsplit('/', 1)[1]
+            output_location = input_loc
+            if os.path.isdir(input_loc):
+                input_string = input_loc + "/frame_%03d.png"
+                output_string = f'{input_loc}/{tail}.mp4'
+                cstring = f'ffmpeg -loglevel panic -y -hide_banner -r {repr(framerate)} -i {input_string} {output_string}'
+                print(f'Make movie from {tail}')
+                call(["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic",
+                      "-r", repr(framerate), "-i", input_string, output_string])
+            else:
+                print(f'Make NO movie from {tail}')
+            return 1
+        else:
+            return 1
+
+    name4 = "RenderMovies"
+    estimators4 = {"render_movies":
                    lambda fnames: movie_function(steps=steps,
-                                                input_location=save_path_raw,
-                                                output_location=save_path_res,
-                                                fnames=fnames)
+                                                 input_location=save_path_raw,
+                                                 output_location=save_path_res,
+                                                 fnames=fnames)
                   }
-
-    # Create dummy runfunc output to pass its shape to experiment handle
-
-    try:
-        if not Path(save_path_raw).exists():
-            Path(save_path_raw).mkdir(parents=True, exist_ok=True)
-        rf_output = pd.read_pickle(save_path_raw + 'rfof.pkl')
-    except FileNotFoundError:
-        params = list(param_combs[0])
-        params[-1] = True
-        rf_output = run_function(*params)[1]
 
     # Run computation and post processing.
 
-    data_generation_handle = eh(run_func=run_function,
-                                runfunc_output=rf_output,
-                                sample_size=sample_size,
-                                parameter_combinations=param_combs,
-                                path_raw=save_path_raw
-                                )
+    def chunk_arr(i, array, i_min, i_max):
+        """
+        split array in equally sized (except for the last
+        one which is shorter) chunks and return the i-th
+        """
+        la = len(array)
+        irange = i_max - i_min
+        di = int(np.floor(la/irange)) if irange > 1 else 1
+        i0 = i-i_min
+        i1 = i0*di
+        i2 = (i0+1)*di
+        print(i1, i2, di, la, irange)
+        if i < i_max:
+            return array[i1:i2]
+        elif i == i_max:
+            return array[i1:]
+        else:
+            return 0
+
+    handle = eh(sample_size=sample_size,
+                parameter_combinations=chunk_arr(job_id, param_combs, 1, max_id),
+                index=index,
+                path_raw=save_path_raw,
+                path_res=save_path_res,
+                use_kwargs=True)
     print('mode is {}'.format(mode))
     if mode == 0:
-        data_generation_handle.compute()
-        # handle.resave(eva=estimators1, name=name1)
-        # handle.resave(eva=estimators2, name=name2)
+        handle.compute(run_func=run_function)
     elif mode == 1:
         handle.resave(eva=estimators3, name=name3, no_output=True)
     elif mode == 2:
-        handle.resave(eva=estimators4, name=name4, no_output=True)
-
+        handle.resave(eva=estimators1, name=name1)
+        handle.resave(eva=estimators2, name=name2)
+    elif mode == 3:
+        handle.compute(run_func=movie_function)
 
     return 1
 
 
 if __name__ == '__main__':
 
-    run_experiment(sys.argv)
+    HELP_MODE = """switch to set mode: 0:computation,
+    1:map plots, 2:post processing of run data,
+    3:make movies from map plots"""
+
+    # parse command line arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--testing", dest='test', action='store_true',
+                    help="switch to for production vs. testing mode")
+    ap.add_argument("--production", dest='test', action='store_false',
+                    help="switch to for production vs. testing mode")
+    ap.set_defaults(test=False)
+    ap.add_argument("-m", "--mode", type=int,
+                    help=HELP_MODE,
+                    default=0,
+                    choices=[0,1,2,3])
+    ap.add_argument("-i", "--job_id", type=int,
+                    help="job id in case of array job",
+                    default=1)
+    ap.add_argument("-N", "--max_id", type=int,
+                    help="max job id in case of array job",
+                    default=1)
+    args = vars(ap.parse_args())
+
+    # run experiment
+    print(args)
+    run_experiment(**args)

@@ -1,8 +1,8 @@
 """
 Experiment to test the influence of drought events.
 Drought events start once the civilisation has reached
-a 'complex society' state (after 200 years) and vary 
-in length and severity from 0 to 100 years and 0 to 100% 
+a 'complex society' state (after 200 years) and vary
+in length and severity from 0 to 100 years and 0 to 100%
 less precipitation.
 
 Therefore, starting point is at t = 200 where the model has
@@ -13,7 +13,7 @@ some influence of precipitation variability on the state of the
 system.
 
 Also, we vary the parameter for income from trade so see, if
-there is a certain parameter value, that results in 
+there is a certain parameter value, that results in
 stable complex society for some drought events and collapse for others.
 """
 import getpass
@@ -28,13 +28,11 @@ from mayasim.model.ModelCore import ModelCore as Model
 
 
 def run_function(d_start=200, d_length=20, d_severity=50.,
-                 r_bca=0.2, r_es=0.0002, r_trade=6000,
+                 r_bca=0.2, r_es=0.00012, r_trade=6000,
                  population_control=False,
                  n=30, crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=500,
-                 settlement_output_path=0,
-                 test=False):
+                 kill_cropless=False, steps=1000, filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -103,7 +101,16 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
 
     # Retrieve results.
 
-    # This is a pandas dataframe
+    res["trajectory"] = m.get_trajectory()
+
+    res["final_climax_cells"] = np.sum(m.forest_state == 3)
+    res["final_regrowth_cells"] = np.sum(m.forest_state == 2)
+    res["final_cleared_cells"] = np.sum(m.forest_state == 1)
+    res["final_aggriculture_cells"] = sum(m.number_cropped_cells)
+
+    res["final population"] = sum(m.population)
+    res["final trade links"] = sum(m.degree)/2.
+    res["final max cluster size"] = m.max_cluster_size
 
     micro_output = m.get_trajectory()
     micro_output.index.name = 'tsteps'
@@ -191,117 +198,80 @@ def run_experiment(argv):
     output_path = [0]
 
     if test == 0:
+        test = False
         d_length = list(range(0, 105, 5))
         d_severity = list(range(0, 105, 5))
-        r_trade = list(range(4000, 11000, 2000))
-        test = [False]
+
+        # parameters for high income from trade
+        # d_length = list(range(0, 105, 5))
+        # d_severity = list(range(0, 105, 5))
+        r_trade = [8000] # hight trade oncome generates stable complex state
+        t_start = [400] # start drought after system has settled
+        param_combs_high = list(it.product(d_length, d_severity, r_trade,
+                                           t_start))
+
+        # parameters for low income from trade
+        # d_length = list(range(0, 105, 5))
+        # d_severity = list(range(0, 105, 5))
+        r_trade = [6000] # low trade income generates oscillating states
+        t_start = [400, 550] # One at first low, one at first hight after
+                             # overshoot
+        param_combs_low = list(it.product(d_length, d_severity, r_trade,
+                                          t_start))
+
+        # put all parameters together
+        param_combs = param_combs_high + param_combs_low
     else:
         d_length = [20]
         d_severity = [0., 60.]
-        r_trade = [6000, 8000]
-        test = [True]
+        r_trade = [6000]
+        t_start = [350] # start drought after system has settled
+        test = True
+        param_combs = list(it.product(d_length, d_severity, r_trade, t_start))
 
-    # Order of the parameters in the resulting tuples have to match the one indicated in
-    # interface of run func, since they will be put in as *param_combs[index]
-    param_combs = list(it.product(d_start, d_length, d_severity, r_bca, r_es,
-                                  r_trade, population_control, n, crop_income_mode,
-                                  better_ess, kill_cropless, steps, output_path, test))
+    index = {0: "d_length", 1: "d_severity", 2: "r_trade", 3: "d_start"}
 
     print(f'computing results for {len(param_combs)} parameter combinations')
-
-    # In this experiment, I use the job_id variable from an array job to split the
-    # parameter combinations into equally sized junks.
-    # This makes it easier for the queing algorithm to allocate its resources (which means,
-    # it will give you more of it ;)
-    # this also means, that the total number of jobs you run, must be a divider of the
-    # number of parameter combinations that you run.
+    print(len(param_combs), max_id)
     if len(param_combs) % max_id != 0:
         print(f'number of jobs ({len(param_combs)}) has to be multiple of max_id ({max_id})!!')
         exit(-1)
 
-    sample_size = 20 if not test else 2
+    sample_size = 15 if not test else 3
 
     # Define names and callables for post processing
 
-    def mean(d_start, d_length, d_severity,
-             r_bca, r_es, r_trade,
-             population_control,
-             n, crop_income_mode,
-             better_ess, kill_cropless, steps,
-             settlement_output_path, test):
+    name1 = "trajectory"
+    estimators1 = {"<mean_trajectories>":
+                   lambda fnames:
+                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).mean(),
+                   "<sigma_trajectories>":
+                   lambda fnames:
+                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).std()
+                   }
+    name2 = "all_trajectories"
+    estimators2 = {"trajectory_list":
+                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
 
-        from pymofa.safehdfstore import SafeHDFStore
+    def foo(fnames, keys):
+        key = keys[0]
+        data = [np.load(f)[key] for f in fnames]
+        df = pd.DataFrame(data=data, columns=[keys[0]])
+        for key in keys[1:]:
+            data = [np.load(f)[key] for f in fnames]
+            df[key] = data
+        return df
 
-        print(settlement_output_path, type(settlement_output_path))
-
-        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
-                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
-                f'& population_control={population_control} & n={n} ' \
-                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
-                f'& kill_cropless={kill_cropless} & steps={steps} ' \
-                f'& settlement_output_path={settlement_output_path} & test={test}'
-
-        with SafeHDFStore(compute_handle.path_raw) as store:
-            trj = store.select("dat_0", where=query)
-
-        df_out = trj.groupby(level='tsteps').mean()
-
-        return 1, df_out
-
-    def sem(d_start, d_length, d_severity,
-             r_bca, r_es, r_trade,
-             population_control,
-             n, crop_income_mode,
-             better_ess, kill_cropless, steps,
-             settlement_output_path, test):
-
-        from pymofa.safehdfstore import SafeHDFStore
-
-        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
-                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
-                f'& population_control={population_control} & n={n} ' \
-                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
-                f'& kill_cropless={kill_cropless} & steps={steps} ' \
-                f'& settlement_output_path={settlement_output_path} & test={test}'
-
-        with SafeHDFStore(compute_handle.path_raw) as store:
-            trj = store.select("dat_0", where=query)
-
-        df_out = trj.groupby(level='tsteps').sem()
-
-        return 1, df_out
-
-    def collect_final_states(d_start, d_length, d_severity,
-                             r_bca, r_es, r_trade,
-                             population_control,
-                             n, crop_income_mode,
-                             better_ess, kill_cropless, steps,
-                             settlement_output_path, test):
-
-        from pymofa.safehdfstore import SafeHDFStore
-
-        query = f'd_start={d_start} & d_length={d_length} & d_severity={d_severity} ' \
-                f'& r_bca={r_bca} & r_es={r_es} & r_trade={r_trade} ' \
-                f'& population_control={population_control} & n={n} ' \
-                f'& crop_income_mode={crop_income_mode} & better_ess={better_ess} ' \
-                f'& kill_cropless={kill_cropless} & steps={steps} ' \
-                f'& settlement_output_path={settlement_output_path} & test={test}'
-
-        with SafeHDFStore(compute_handle.path_raw) as store:
-            trj = store.select("dat_1", where=query)
-
-        return 1, trj
-
-    # Create dummy runfunc output to pass its shape to experiment handle
-
-    try:
-        if not Path(save_path_raw).exists():
-            Path(save_path_raw).mkdir(parents=True, exist_ok=True)
-        rf_output = pd.read_pickle(save_path_raw + 'rfof.pkl')
-    except FileNotFoundError:
-        params = list(param_combs[0])
-        params[-1] = True
-        rf_output = run_function(*params)[1]
+    name3 = "all_final_states"
+    estimators3 = {"final states":
+                   lambda fnames:
+                   foo(fnames, ["final population",
+                                "final trade links",
+                                "final max cluster size",
+                                "final_climax_cells",
+                                "final_regrowth_cells",
+                                "final_cleared_cells"])
+                   }
 
     # Run computation and post processing.
 

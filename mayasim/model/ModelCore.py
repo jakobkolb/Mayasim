@@ -666,8 +666,11 @@ class ModelCore(Parameters):
                 for useless_cropped_cell in useless_cropped_cells:
                     self.occupied_cells[useless_cropped_cell] = 0
                     for dim in range(2):
-                        self.cropped_cells[city][dim] \
-                            .remove(useless_cropped_cell[dim])
+                        try:
+                            self.cropped_cells[city][dim] \
+                                .remove(useless_cropped_cell[dim])
+                        except ValueError():
+                            print('ERROR: Useless cell gone already')
                     abandoned += 1
 
         # Finally, update list of lists containing cropped cells for each city
