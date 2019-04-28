@@ -5,3 +5,5 @@ echo $jid1
 sleep 2
 sbatch --dependency=afterok:${jid1##* } job_x10_pp.sh
 
+sleep 2
+sbatch --dependency=afterok:${jid1##* } job_x10_map_frames.sh

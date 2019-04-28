@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --qos=short
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --job-name=Maya_9_compute
+#SBATCH --job-name=M_10_compute
 #SBATCH --output=ms_x10_compute_out/%j.out
 #SBATCH --error=ms_x10_compute_err/%j.err
 #SBATCH --account=copan
