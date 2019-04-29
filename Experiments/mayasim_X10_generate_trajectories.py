@@ -183,22 +183,28 @@ def run_experiment(test, mode, job_id, max_id):
 
     param_combs = list(it.product(r_trade, r_es, [test]))
 
-    STEPS = 2000 if not test else 50
-    sample_size = 31 if not test else 1
+    STEPS = 2000 if not test else 5
+    sample_size = 31 if not test else 2
 
     # Define names and callables for post processing
 
     name1 = "aggregated_trajectory"
 
-    estimators1 = {"<mean_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"]
-                              for f in fnames]).groupby(level=0).mean(),
-                   "<sigma_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"]
-                              for f in fnames]).groupby(level=0).std()
-                  }
+    def magg(fnames):
+        df = pd.concat([np.load(f)["trajectory"][['total_population',
+                                                  'forest_state_3_cells']] for f in
+                   fnames]).astype(float).groupby(level=0).mean()
+        return df
+
+
+    def sagg(fnames):
+        df = pd.concat([np.load(f)["trajectory"][['total_population',
+                                                  'forest_state_3_cells']] for f in
+                   fnames]).astype(float).groupby(level=0).std()
+        return df.groupby(level=0).std()
+
+    estimators1 = {"<mean_trajectories>": magg,
+                   "<sigma_trajectories>": sagg}
     name2 = "all_trajectories"
 
     estimators2 = {"trajectory_list":
