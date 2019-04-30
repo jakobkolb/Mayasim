@@ -23,5 +23,4 @@ echo "$SLURM_NTASKS tasks"
 echo "------------------------------------------------------------"
 
 cd ../Experiments/
-srun -n $SLURM_NTASKS python mayasim_X10_generate_trajectories.py --mode 0
---job_id $SLURM_ARRAY_TASK_ID --max_id $SLURM_ARRAY_TASK_MAX
+srun -n $SLURM_NTASKS python mayasim_X10_generate_trajectories.py --mode 0 --job_id $SLURM_ARRAY_TASK_ID --max_id $SLURM_ARRAY_TASK_MAX
