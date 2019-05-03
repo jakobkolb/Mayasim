@@ -16,23 +16,100 @@ Also, we vary the parameter for income from trade so see, if
 there is a certain parameter value, that results in
 stable complex society for some drought events and collapse for others.
 """
+
 import getpass
 import itertools as it
+import pickle as cp
 import sys
-import pandas as pd
-from pathlib import Path
+
 import numpy as np
-
+import pandas as pd
 from pymofa.experiment_handling import experiment_handling as eh
+
 from mayasim.model.ModelCore import ModelCore as Model
+from mayasim.model.ModelParameters import ModelParameters as Parameters
+
+test = True
 
 
-def run_function(d_start=200, d_length=20, d_severity=50.,
-                 r_bca=0.2, r_es=0.00012, r_trade=6000,
+def load(fname):
+    """ try to load the file with name fname.
+
+    If it worked, return the content. If not, return -1
+    """
+    try:
+        return np.load(fname)
+    except OSError:
+        try:
+            os.remove(fname)
+        except:
+            print(f"{fname} couldn't be read or deleted")
+    except IOError:
+        try:
+            os.remove(fname)
+        except:
+            print(f"{fname} couldn't be read or deleted")
+
+
+def magg(fnames):
+    """calculate the mean of all files in fnames over time steps
+
+    For each file in fnames, load the file with the load function, check,
+    if it actually loaded and if so, append it to the list of data frames.
+    Then concatenate the data frames, group them by time steps and take the
+    mean over values for the same time step.
+    """
+    dfs = []
+
+    for f in fnames:
+        df = load(f)
+        if df is not None:
+            dfs.append(df["trajectory"])
+
+    return pd.concat(dfs).groupby(level=0).mean()
+
+
+def sagg(fnames):
+    """calculate the mean of all files in fnames over time steps
+
+    For each file in fnames, load the file with the load function, check,
+    if it actually loaded and if so, append it to the list of data frames.
+    Then concatenate the data frames, group them by time steps and take the
+    standard deviation over values for the same time step.
+    """
+    dfs = []
+
+    for f in fnames:
+        df = load(f)
+        if df is not None:
+            dfs.append(df["trajectory"])
+
+    return pd.concat(dfs).groupby(level=0).std()
+
+
+def trj_list(fnames):
+    """load all available trajectories and return them as a list"""
+    trajectory_list = []
+    for f in fnames:
+        df = load(f)
+        if df is not None:
+            trajectory_list.append(df["trajectory"])
+    return trajectory_list
+
+
+def run_function(d_start=200,
+                 d_length=20,
+                 d_severity=50.,
+                 r_bca=0.2,
+                 r_es=0.00012,
+                 r_trade=6000,
                  population_control=False,
-                 n=30, crop_income_mode='sum',
+                 n=30,
+                 crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, steps=1000, filename='./'):
+                 kill_cropless=False,
+                 steps=1000,
+                 filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -75,8 +152,9 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
 
     # initialize the Model
 
-    m = Model(n=n, output_data_location=settlement_output_path, debug=test)
-    if settlement_output_path == 0:
+    m = Model(n, output_data_location=filename, debug=test)
+
+    if not filename.endswith('s0.pkl'):
         m.output_geographic_data = False
         m.output_settlement_data = False
 
@@ -92,6 +170,25 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     m.drought_times = [[d_start, d_start + d_length]]
     m.drought_severity = d_severity
 
+    # store initial conditions and Parameters
+
+    res = {
+        "initials":
+        pd.DataFrame({
+            "Settlement X Possitions": m.settlement_positions[0],
+            "Settlement Y Possitions": m.settlement_positions[1],
+            "Population": m.population
+        }),
+        "Parameters":
+        pd.Series({
+            key: getattr(m, key)
+
+            for key in dir(Parameters)
+
+            if not key.startswith('__') and not callable(key)
+        })
+    }
+
     # run Model
 
     if test:
@@ -99,7 +196,7 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     else:
         m.run(steps)
 
-    # Retrieve results.
+    # Retrieve results
 
     res["trajectory"] = m.get_trajectory()
 
@@ -109,22 +206,16 @@ def run_function(d_start=200, d_length=20, d_severity=50.,
     res["final_aggriculture_cells"] = sum(m.number_cropped_cells)
 
     res["final population"] = sum(m.population)
-    res["final trade links"] = sum(m.degree)/2.
+    res["final trade links"] = sum(m.degree) / 2.
     res["final max cluster size"] = m.max_cluster_size
 
-    micro_output = m.get_trajectory()
-    micro_output.index.name = 'tsteps'
+    try:
+        with open(filename, 'wb') as dumpfile:
+            cp.dump(res, dumpfile)
 
-    data = {'final_population': [sum(m.population)],
-            'final_trade_links': [sum(m.degree) / 2.],
-            'final_max_cluster_size': [m.max_cluster_size]}
-
-    macro_output = pd.DataFrame(data)
-    macro_output.index.name = 'ind'
-
-    # and save them to the path indicated by 'filename'
-
-    return 1, [micro_output, macro_output]
+            return 1
+    except IOError:
+        return -1
 
 
 def run_experiment(argv):
@@ -153,19 +244,23 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
+    global test
+
     # Parse switches from input
+
     if len(argv) > 1:
         test = int(argv[1])
-    else:
-        test = True
+
     if len(argv) > 2:
         mode = int(argv[2])
     else:
         mode = None
+
     if len(argv) > 3:
         job_id = int(argv[3])
     else:
         job_id = 1
+
     if len(argv) > 4:
         max_id = int(argv[4])
     else:
@@ -179,23 +274,22 @@ def run_experiment(argv):
     res = 'results/'
 
     if getpass.getuser() == "kolb":
-        save_path_raw = f"/p/tmp/kolb/Mayasim/output_data/{test_folder}{experiment_folder}{raw}"
-        save_path_res = f"/home/kolb/Mayasim/output_data/{test_folder}{experiment_folder}{res}"
+        save_path_raw = "/p/tmp/kolb/Mayasim/output_data/{}{}{}".format(
+            test_folder, experiment_folder, raw)
+        save_path_res = "/home/kolb/Mayasim/output_data/{}{}{}".format(
+            test_folder, experiment_folder, res)
     elif getpass.getuser() == "jakob":
-        save_path_raw = f"/home/jakob/Project_MayaSim/Python/output_data/{test_folder}{experiment_folder}{raw}"
-        save_path_res = f"/home/jakob/Project_MayaSim/Python/output_data/{test_folder}{experiment_folder}{res}"
+        save_path_raw = \
+            "/home/jakob/Project_MayaSim/Python/" \
+            "output_data/{}{}{}".format(test_folder, experiment_folder, raw)
+        save_path_res = \
+            "/home/jakob/Project_MayaSim/Python/" \
+            "output_data/{}{}{}".format(test_folder, experiment_folder, res)
     else:
-        save_path_res = f'./{res}'
-        save_path_raw = f'./{raw}'
+        save_path_res = './{}'.format(res)
+        save_path_raw = './{}'.format(raw)
 
-    # Generate parameter combinations and set up 'index' dictionary,
-    # indicating their possition in the Index of the postprocessed results.
-
-    d_start = [200]
-    r_bca, r_es = [0.2], [0.0002]
-    population_control = [False]
-    n, crop_income_mode, better_ess, kill_cropless, steps = [30], ['sum'], [True], [False], [500]
-    output_path = [0]
+    # Generate parameter combinations
 
     if test == 0:
         test = False
@@ -205,19 +299,19 @@ def run_experiment(argv):
         # parameters for high income from trade
         # d_length = list(range(0, 105, 5))
         # d_severity = list(range(0, 105, 5))
-        r_trade = [8000] # hight trade oncome generates stable complex state
-        t_start = [400] # start drought after system has settled
-        param_combs_high = list(it.product(d_length, d_severity, r_trade,
-                                           t_start))
+        r_trade = [8000]  # hight trade oncome generates stable complex state
+        t_start = [400]  # start drought after system has settled
+        param_combs_high = list(
+            it.product(d_length, d_severity, r_trade, t_start))
 
         # parameters for low income from trade
         # d_length = list(range(0, 105, 5))
         # d_severity = list(range(0, 105, 5))
-        r_trade = [6000] # low trade income generates oscillating states
-        t_start = [400, 550] # One at first low, one at first hight after
-                             # overshoot
-        param_combs_low = list(it.product(d_length, d_severity, r_trade,
-                                          t_start))
+        r_trade = [6000]  # low trade income generates oscillating states
+        t_start = [400, 550]  # One at first low, one at first hight after
+        # overshoot
+        param_combs_low = list(
+            it.product(d_length, d_severity, r_trade, t_start))
 
         # put all parameters together
         param_combs = param_combs_high + param_combs_low
@@ -225,7 +319,7 @@ def run_experiment(argv):
         d_length = [20]
         d_severity = [0., 60.]
         r_trade = [6000]
-        t_start = [350] # start drought after system has settled
+        t_start = [350]  # start drought after system has settled
         test = True
         param_combs = list(it.product(d_length, d_severity, r_trade, t_start))
 
@@ -233,8 +327,11 @@ def run_experiment(argv):
 
     print(f'computing results for {len(param_combs)} parameter combinations')
     print(len(param_combs), max_id)
+
     if len(param_combs) % max_id != 0:
-        print(f'number of jobs ({len(param_combs)}) has to be multiple of max_id ({max_id})!!')
+        print(
+            f'number of jobs ({len(param_combs)}) has to be multiple of max_id ({max_id})!!'
+        )
         exit(-1)
 
     sample_size = 15 if not test else 3
@@ -242,82 +339,61 @@ def run_experiment(argv):
     # Define names and callables for post processing
 
     name1 = "trajectory"
-    estimators1 = {"<mean_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).mean(),
-                   "<sigma_trajectories>":
-                   lambda fnames:
-                   pd.concat([np.load(f)["trajectory"] for f in fnames]).groupby(level=0).std()
-                   }
+    estimators1 = {
+        "<mean_trajectories>": magg,
+        "<sigma_trajectories>": sagg
+    }
     name2 = "all_trajectories"
-    estimators2 = {"trajectory_list":
-                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
+    estimators2 = {
+        "trajectory_list": trj_list}
 
     def foo(fnames, keys):
         key = keys[0]
         data = [np.load(f)[key] for f in fnames]
         df = pd.DataFrame(data=data, columns=[keys[0]])
+
         for key in keys[1:]:
             data = [np.load(f)[key] for f in fnames]
             df[key] = data
+
         return df
 
     name3 = "all_final_states"
-    estimators3 = {"final states":
-                   lambda fnames:
-                   foo(fnames, ["final population",
-                                "final trade links",
-                                "final max cluster size",
-                                "final_climax_cells",
-                                "final_regrowth_cells",
-                                "final_cleared_cells"])
-                   }
+    estimators3 = {
+        "final states":
+        lambda fnames: foo(fnames, [
+            "final population", "final trade links", "final max cluster size",
+            "final_climax_cells", "final_regrowth_cells", "final_cleared_cells"
+        ])
+    }
 
     # Run computation and post processing.
 
-    # devide parameter combination into equally sized chunks.
-    cl = int(len(param_combs)/max_id)
-    i = (job_id-1)*cl
-    j = job_id*cl
+    cl = int(len(param_combs) / max_id)
+    i = (job_id - 1) * cl
+    j = job_id * cl
 
-    # initialize computation and post processing handles
-    compute_handle = eh(run_func=run_function,
-                        runfunc_output=rf_output,
-                        sample_size=sample_size,
-                        parameter_combinations=param_combs[i:j],
-                        path_raw=save_path_raw,
-                        )
-    pp1_handle = eh(run_func=mean,
-                    runfunc_output=rf_output,
-                    sample_size=1,
-                    parameter_combinations=param_combs,
-                    path_raw=save_path_res + '/mean.h5',
-                    )
-    pp2_handle = eh(run_func=sem,
-                    runfunc_output=rf_output,
-                    sample_size=1,
-                    parameter_combinations=param_combs,
-                    path_raw=save_path_res + '/sem.h5',
-                    )
-    pp3_handle = eh(run_func=collect_final_states,
-                    runfunc_output=rf_output,
-                    sample_size=1,
-                    parameter_combinations=param_combs,
-                    path_raw=save_path_res + '/final_states.h5',
-                    )
+    handle = eh(sample_size=sample_size,
+                parameter_combinations=param_combs[i:j],
+                index=index,
+                path_raw=save_path_raw,
+                path_res=save_path_res,
+                use_kwargs=True)
 
     if mode == 1:
-        compute_handle.compute()
+        handle.compute(run_func=run_function)
+
         return 0
-    if mode == 2:
-        pp1_handle.compute()
-        pp2_handle.compute()
-        pp3_handle.compute()
+    elif mode == 2:
+        handle.resave(eva=estimators1, name=name1)
+        handle.resave(eva=estimators2, name=name2)
+        handle.resave(eva=estimators3, name=name3)
+
+        return 0
 
     return 1
 
 
-# The definition of the run_function makes it easier to test the experiment with pytest.
 if __name__ == '__main__':
 
     run_experiment(sys.argv)
