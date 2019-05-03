@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --qos=short
+#SBATCH --qos=priority
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --job-name=Maya_9_eval
 #SBATCH --output=ms_x9_eval_%j.out
 #SBATCH --error=ms_x9_eval_%j.err
 #SBATCH --account=copan
 #SBATCH --nodes=1
-#SBATCH --tasks-per-node=4
+#SBATCH --tasks-per-node=16
 
 module load compiler/intel/16.0.0
 module load hpc/2015 anaconda/2.3.0
