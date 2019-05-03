@@ -14,30 +14,102 @@ analysis of frequency of oscillations from the trajectories.
 """
 
 from __future__ import print_function
-import sys
+
 import argparse
-import os
-try:
-    import cPickle as cp
-except ImportError:
-    import pickle as cp
 import getpass
 import itertools as it
+import os
+import sys
+
 import numpy as np
 import pandas as pd
-
 from pymofa.experiment_handling import experiment_handling as eh
+
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 from mayasim.visuals.custom_visuals import MapPlot
 
+try:
+    import cPickle as cp
+except ImportError:
+    import pickle as cp
+
 STEPS = 2000
 
-def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
+
+def load(fname):
+    """ try to load the file with name fname.
+
+    If it worked, return the content. If not, return -1
+    """
+    try:
+        return np.load(fname)
+    except OSError:
+        try:
+            os.remove(fname)
+        except:
+            print(f"{fname} couldn't be read or deleted")
+
+            return -1
+    except IOError:
+        try:
+            os.remove(fname)
+        except:
+            print(f"{fname} couldn't be read or deleted")
+
+            return -1
+
+
+def magg(fnames):
+    """calculate the mean of all files in fnames over time steps
+
+    For each file in fnames, load the file with the load function, check,
+    if it actually loaded and if so, append it to the list of data frames.
+    Then concatenate the data frames, group them by time steps and take the
+    mean over values for the same time step.
+    """
+    dfs = []
+
+    for f in fnames:
+        df = load(f)
+
+        if df is not -1:
+            dfs.append(
+                df["trajectory"][['total_population', 'forest_state_3_cells']])
+
+    return pd.concat(dfs).groupby(level=0).mean()
+
+
+def sagg(fnames):
+    """calculate the mean of all files in fnames over time steps
+
+    For each file in fnames, load the file with the load function, check,
+    if it actually loaded and if so, append it to the list of data frames.
+    Then concatenate the data frames, group them by time steps and take the
+    standard deviation over values for the same time step.
+    """
+    dfs = []
+
+    for f in fnames:
+        df = load(f)
+
+        if df is not -1:
+            dfs.append(
+                df["trajectory"][['total_population', 'forest_state_3_cells']])
+
+    return pd.concat(dfs).groupby(level=0).std()
+
+
+def run_function(r_bca=0.2,
+                 r_es=0.0002,
+                 r_trade=6000,
                  population_control=False,
-                 n=30, crop_income_mode='sum',
+                 n=30,
+                 crop_income_mode='sum',
                  better_ess=True,
-                 kill_cropless=False, test=False, filename='./'):
+                 kill_cropless=False,
+                 test=False,
+                 filename='./'):
     """
     Set up the Model for different Parameters and determine
     which parts of the output are saved where.
@@ -94,15 +166,22 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
 
     # store initial conditions and Parameters
 
-    res = {"initials": pd.DataFrame({"Settlement X Possitions":
-                                     m.settlement_positions[0],
-                                     "Settlement Y Possitions":
-                                     m.settlement_positions[1],
-                                     "Population": m.population}),
-           "Parameters": pd.Series({key: getattr(m, key)
-                                    for key in dir(Parameters)
-                                    if not key.startswith('__')
-                                    and not callable(key)})}
+    res = {
+        "initials":
+        pd.DataFrame({
+            "Settlement X Possitions": m.settlement_positions[0],
+            "Settlement Y Possitions": m.settlement_positions[1],
+            "Population": m.population
+        }),
+        "Parameters":
+        pd.Series({
+            key: getattr(m, key)
+
+            for key in dir(Parameters)
+
+            if not key.startswith('__') and not callable(key)
+        })
+    }
 
     # run Model
 
@@ -115,6 +194,7 @@ def run_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
     try:
         with open(filename, 'wb') as dumpfile:
             cp.dump(res, dumpfile)
+
             return 1
     except IOError:
         return -1
@@ -174,12 +254,13 @@ def run_experiment(test, mode, job_id, max_id):
     # Generate parameter combinations
 
     index = {0: "r_trade", 1: "r_es", 2: "test"}
+
     if test:
         r_trade = [6000, 7000]
         r_es = [0.0002, 0.0001]
     else:
-        r_trade =   [round(x,5) for x in np.arange(4000,9400,100)]
-        r_es =      [round(x,5) for x in np.arange(0.00005,0.00018,0.000002)]
+        r_trade = [round(x, 5) for x in np.arange(4000, 9400, 100)]
+        r_es = [round(x, 5) for x in np.arange(0.00005, 0.00018, 0.000002)]
 
     param_combs = list(it.product(r_trade, r_es, [test]))
 
@@ -190,37 +271,30 @@ def run_experiment(test, mode, job_id, max_id):
 
     name1 = "aggregated_trajectory"
 
-    def magg(fnames):
-        df = pd.concat([np.load(f)["trajectory"][['total_population',
-                                                  'forest_state_3_cells']] for f in
-                   fnames]).astype(float).groupby(level=0).mean()
-        return df
-
-
-    def sagg(fnames):
-        df = pd.concat([np.load(f)["trajectory"][['total_population',
-                                                  'forest_state_3_cells']] for f in
-                   fnames]).astype(float).groupby(level=0).std()
-        return df.groupby(level=0).std()
-
-    estimators1 = {"<mean_trajectories>": magg,
-                   "<sigma_trajectories>": sagg}
+    estimators1 = {"<mean_trajectories>": magg, "<sigma_trajectories>": sagg}
     name2 = "all_trajectories"
 
-    estimators2 = {"trajectory_list":
-                   lambda fnames: [np.load(f)["trajectory"] for f in fnames]}
+    estimators2 = {
+        "trajectory_list": lambda fnames:
+        [load(f)["trajectory"] for f in fnames]
+    }
 
-    def plot_function(steps=1, input_location='./', output_location='./', fnames='./'):
+    def plot_function(steps=1,
+                      input_location='./',
+                      output_location='./',
+                      fnames='./'):
         print(input_location)
         print(output_location)
         print(fnames)
         input_loc = fnames[0]
+
         if input_loc.endswith('.pkl'):
             input_loc = input_loc[:-4]
 
         tail = input_loc.rsplit('/', 1)[1]
         output_location += tail
         print(tail)
+
         if not os.path.isdir(output_location):
             os.mkdir(output_location)
         mp = MapPlot(t_max=steps,
@@ -229,46 +303,59 @@ def run_experiment(test, mode, job_id, max_id):
 
         mp.mplot()
         mp.moviefy(namelist=['frame_'])
+
         return 1
 
     name3 = "FramePlots"
-    estimators3 = {"map_plots":
-                   lambda fnames: plot_function(steps=STEPS,
-                                                input_location=save_path_raw,
-                                                output_location=save_path_res,
-                                                fnames=fnames)
-                  }
-    def movie_function(r_bca=0.2, r_es=0.0002, r_trade=6000,
+    estimators3 = {
+        "map_plots":
+        lambda fnames: plot_function(steps=STEPS,
+                                     input_location=save_path_raw,
+                                     output_location=save_path_res,
+                                     fnames=fnames)
+    }
+
+    def movie_function(r_bca=0.2,
+                       r_es=0.0002,
+                       r_trade=6000,
                        population_control=False,
-                       n=30, crop_income_mode='sum',
+                       n=30,
+                       crop_income_mode='sum',
                        better_ess=True,
-                       kill_cropless=False, filename='./'):
+                       kill_cropless=False,
+                       filename='./'):
         from subprocess import call
         framerate = 10
+
         if filename.endswith('s0.pkl'):
             input_loc = filename.replace('raw_data', 'results')[:-4]
             tail = input_loc.rsplit('/', 1)[1]
             output_location = input_loc
+
             if os.path.isdir(input_loc):
                 input_string = input_loc + "/frame_%03d.png"
                 output_string = f'{input_loc}/{tail}.mp4'
                 cstring = f'ffmpeg -loglevel panic -y -hide_banner -r {repr(framerate)} -i {input_string} {output_string}'
                 print(f'Make movie from {tail}')
-                call(["ffmpeg", "-y", "-hide_banner", "-loglevel", "panic",
-                      "-r", repr(framerate), "-i", input_string, output_string])
+                call([
+                    "ffmpeg", "-y", "-hide_banner", "-loglevel", "panic", "-r",
+                    repr(framerate), "-i", input_string, output_string
+                ])
             else:
                 print(f'Make NO movie from {tail}')
+
             return 1
         else:
             return 1
 
     name4 = "RenderMovies"
-    estimators4 = {"render_movies":
-                   lambda fnames: movie_function(steps=steps,
-                                                 input_location=save_path_raw,
-                                                 output_location=save_path_res,
-                                                 fnames=fnames)
-                  }
+    estimators4 = {
+        "render_movies":
+        lambda fnames: movie_function(steps=steps,
+                                      input_location=save_path_raw,
+                                      output_location=save_path_res,
+                                      fnames=fnames)
+    }
 
     # Run computation and post processing.
 
@@ -279,11 +366,12 @@ def run_experiment(test, mode, job_id, max_id):
         """
         la = len(array)
         irange = i_max - i_min
-        di = int(np.floor(la/irange)) if irange > 1 else 1
-        i0 = i-i_min
-        i1 = i0*di
-        i2 = (i0+1)*di
+        di = int(np.floor(la / irange)) if irange > 1 else 1
+        i0 = i - i_min
+        i1 = i0 * di
+        i2 = (i0 + 1) * di
         print(i1, i2, di, la, irange)
+
         if i < i_max:
             return array[i1:i2]
         elif i == i_max:
@@ -292,12 +380,14 @@ def run_experiment(test, mode, job_id, max_id):
             return 0
 
     handle = eh(sample_size=sample_size,
-                parameter_combinations=chunk_arr(job_id, param_combs, 1, max_id),
+                parameter_combinations=chunk_arr(job_id, param_combs, 1,
+                                                 max_id),
                 index=index,
                 path_raw=save_path_raw,
                 path_res=save_path_res,
                 use_kwargs=True)
     print('mode is {}'.format(mode))
+
     if mode == 0:
         handle.compute(run_func=run_function)
     elif mode == 1:
@@ -319,19 +409,29 @@ if __name__ == '__main__':
 
     # parse command line arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("--testing", dest='test', action='store_true',
+    ap.add_argument("--testing",
+                    dest='test',
+                    action='store_true',
                     help="switch to for production vs. testing mode")
-    ap.add_argument("--production", dest='test', action='store_false',
+    ap.add_argument("--production",
+                    dest='test',
+                    action='store_false',
                     help="switch to for production vs. testing mode")
     ap.set_defaults(test=False)
-    ap.add_argument("-m", "--mode", type=int,
+    ap.add_argument("-m",
+                    "--mode",
+                    type=int,
                     help=HELP_MODE,
                     default=0,
-                    choices=[0,1,2,3])
-    ap.add_argument("-i", "--job_id", type=int,
+                    choices=[0, 1, 2, 3])
+    ap.add_argument("-i",
+                    "--job_id",
+                    type=int,
                     help="job id in case of array job",
                     default=1)
-    ap.add_argument("-N", "--max_id", type=int,
+    ap.add_argument("-N",
+                    "--max_id",
+                    type=int,
                     help="max job id in case of array job",
                     default=1)
     args = vars(ap.parse_args())
