@@ -1,5 +1,5 @@
 """
-Experiment to test the influence of drought events.
+Experiment to TEST the influence of drought events.
 Drought events start once the civilisation has reached
 a 'complex society' state (after 200 years) and vary
 in length and severity from 0 to 100 years and 0 to 100%
@@ -29,7 +29,7 @@ from pymofa.experiment_handling import experiment_handling as eh
 from mayasim.model.ModelCore import ModelCore as Model
 from mayasim.model.ModelParameters import ModelParameters as Parameters
 
-test = True
+TEST = True
 
 
 def load(fname):
@@ -61,10 +61,11 @@ def magg(fnames):
     """
     dfs = []
 
-    for f in fnames:
-        df = load(f)
-        if df is not None:
-            dfs.append(df["trajectory"])
+    for fname in fnames:
+        dft = load(fname)
+
+        if dft is not None:
+            dfs.append(dft["trajectory"].astype('float'))
 
     return pd.concat(dfs).groupby(level=0).mean()
 
@@ -79,10 +80,11 @@ def sagg(fnames):
     """
     dfs = []
 
-    for f in fnames:
-        df = load(f)
-        if df is not None:
-            dfs.append(df["trajectory"])
+    for fname in fnames:
+        dft = load(fname)
+
+        if dft is not None:
+            dfs.append(dft["trajectory"].astype('float'))
 
     return pd.concat(dfs).groupby(level=0).std()
 
@@ -90,10 +92,13 @@ def sagg(fnames):
 def trj_list(fnames):
     """load all available trajectories and return them as a list"""
     trajectory_list = []
-    for f in fnames:
-        df = load(f)
-        if df is not None:
-            trajectory_list.append(df["trajectory"])
+
+    for fname in fnames:
+        dft = load(fname)
+
+        if dft is not None:
+            trajectory_list.append(dft["trajectory"].astype('float'))
+
     return trajectory_list
 
 
@@ -152,36 +157,36 @@ def run_function(d_start=200,
 
     # initialize the Model
 
-    m = Model(n, output_data_location=filename, debug=test)
+    model = Model(n, output_data_location=filename, debug=TEST)
 
     if not filename.endswith('s0.pkl'):
-        m.output_geographic_data = False
-        m.output_settlement_data = False
+        model.output_geographic_data = False
+        model.output_settlement_data = False
 
-    m.population_control = population_control
-    m.crop_income_mode = crop_income_mode
-    m.better_ess = better_ess
-    m.r_bca_sum = r_bca
-    m.r_es_sum = r_es
-    m.r_trade = r_trade
-    m.kill_cities_without_crops = kill_cropless
+    model.population_control = population_control
+    model.crop_income_mode = crop_income_mode
+    model.better_ess = better_ess
+    model.r_bca_sum = r_bca
+    model.r_es_sum = r_es
+    model.r_trade = r_trade
+    model.kill_cities_without_crops = kill_cropless
 
-    m.precipitation_modulation = False
-    m.drought_times = [[d_start, d_start + d_length]]
-    m.drought_severity = d_severity
+    model.precipitation_modulation = False
+    model.drought_times = [[d_start, d_start + d_length]]
+    model.drought_severity = d_severity
 
     # store initial conditions and Parameters
 
     res = {
         "initials":
         pd.DataFrame({
-            "Settlement X Possitions": m.settlement_positions[0],
-            "Settlement Y Possitions": m.settlement_positions[1],
-            "Population": m.population
+            "Settlement X Possitions": model.settlement_positions[0],
+            "Settlement Y Possitions": model.settlement_positions[1],
+            "Population": model.population
         }),
         "Parameters":
         pd.Series({
-            key: getattr(m, key)
+            key: getattr(model, key)
 
             for key in dir(Parameters)
 
@@ -191,23 +196,23 @@ def run_function(d_start=200,
 
     # run Model
 
-    if test:
-        m.run(3)
+    if TEST:
+        model.run(3)
     else:
-        m.run(steps)
+        model.run(steps)
 
     # Retrieve results
 
-    res["trajectory"] = m.get_trajectory()
+    res["trajectory"] = model.get_trajectory()
 
-    res["final_climax_cells"] = np.sum(m.forest_state == 3)
-    res["final_regrowth_cells"] = np.sum(m.forest_state == 2)
-    res["final_cleared_cells"] = np.sum(m.forest_state == 1)
-    res["final_aggriculture_cells"] = sum(m.number_cropped_cells)
+    res["final_climax_cells"] = np.sum(model.forest_state == 3)
+    res["final_regrowth_cells"] = np.sum(model.forest_state == 2)
+    res["final_cleared_cells"] = np.sum(model.forest_state == 1)
+    res["final_aggriculture_cells"] = sum(model.number_cropped_cells)
 
-    res["final population"] = sum(m.population)
-    res["final trade links"] = sum(m.degree) / 2.
-    res["final max cluster size"] = m.max_cluster_size
+    res["final population"] = sum(model.population)
+    res["final trade links"] = sum(model.degree) / 2.
+    res["final max cluster size"] = model.max_cluster_size
 
     try:
         with open(filename, 'wb') as dumpfile:
@@ -244,13 +249,14 @@ def run_experiment(argv):
         return 1 if sucessfull.
     """
 
-    global test
+    global TEST
 
     # Parse switches from input
 
     if len(argv) > 1:
-        test = int(argv[1])
-
+        TEST = bool(int(argv[1]))
+    else:
+        TEST = True
     if len(argv) > 2:
         mode = int(argv[2])
     else:
@@ -268,7 +274,7 @@ def run_experiment(argv):
 
     # Generate paths according to switches and user name
 
-    test_folder = ['', 'test_output/'][int(test)]
+    test_folder = 'test_output/' if TEST else ''
     experiment_folder = 'X9_stability_analysis/'
     raw = 'raw_data/'
     res = 'results/'
@@ -291,15 +297,14 @@ def run_experiment(argv):
 
     # Generate parameter combinations
 
-    if test == 0:
-        test = False
+    if not TEST:
         d_length = list(range(0, 105, 5))
         d_severity = list(range(0, 105, 5))
 
         # parameters for high income from trade
         # d_length = list(range(0, 105, 5))
         # d_severity = list(range(0, 105, 5))
-        r_trade = [8000]  # hight trade oncome generates stable complex state
+        r_trade = [8000]  # hight trade income generates stable complex state
         t_start = [400]  # start drought after system has settled
         param_combs_high = list(
             it.product(d_length, d_severity, r_trade, t_start))
@@ -320,7 +325,6 @@ def run_experiment(argv):
         d_severity = [0., 60.]
         r_trade = [6000]
         t_start = [350]  # start drought after system has settled
-        test = True
         param_combs = list(it.product(d_length, d_severity, r_trade, t_start))
 
     index = {0: "d_length", 1: "d_severity", 2: "r_trade", 3: "d_start"}
@@ -334,34 +338,45 @@ def run_experiment(argv):
         )
         exit(-1)
 
-    sample_size = 15 if not test else 3
+    sample_size = 31 if not TEST else 3
 
     # Define names and callables for post processing
 
     name1 = "trajectory"
-    estimators1 = {
-        "<mean_trajectories>": magg,
-        "<sigma_trajectories>": sagg
-    }
+    estimators1 = {"<mean_trajectories>": magg, "<sigma_trajectories>": sagg}
     name2 = "all_trajectories"
-    estimators2 = {
-        "trajectory_list": trj_list}
+    estimators2 = {"trajectory_list": trj_list}
 
-    def foo(fnames, keys):
+    def final_states(fnames, keys):
+        """load results and collect all that are specified by keys to return
+        them in a pandas dataframe
+        """
         key = keys[0]
-        data = [np.load(f)[key] for f in fnames]
-        df = pd.DataFrame(data=data, columns=[keys[0]])
+        data = []
+
+        for fname in fnames:
+            dft = load(fname)
+
+            if dft is not None:
+                data.append(dft[key])
+        dfo = pd.DataFrame(data=data, columns=[keys[0]])
 
         for key in keys[1:]:
-            data = [np.load(f)[key] for f in fnames]
-            df[key] = data
+            data = []
 
-        return df
+            for fname in fnames:
+                dft = load(fname)
+
+                if dft is not None:
+                    data.append(dft[key])
+            dfo[key] = data
+
+        return dfo
 
     name3 = "all_final_states"
     estimators3 = {
         "final states":
-        lambda fnames: foo(fnames, [
+        lambda fnames: final_states(fnames, [
             "final population", "final trade links", "final max cluster size",
             "final_climax_cells", "final_regrowth_cells", "final_cleared_cells"
         ])
