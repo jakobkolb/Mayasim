@@ -5,7 +5,7 @@
 #SBATCH --output=ms_x9_compute_%j.out
 #SBATCH --error=ms_x9_compute_%j.err
 #SBATCH --account=copan
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --tasks-per-node=16
 #SBATCH --array=1-1323
 
