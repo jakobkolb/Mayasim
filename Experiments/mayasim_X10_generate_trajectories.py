@@ -35,6 +35,7 @@ except ImportError:
     import pickle as cp
 
 STEPS = 2000
+TABLE_EXISTS = False
 
 
 def load(fname):
@@ -75,7 +76,8 @@ def magg(fnames):
 
         if df is not -1:
             dfs.append(
-                df["trajectory"][['total_population', 'forest_state_3_cells']])
+                df["trajectory"][['total_population',
+                                  'forest_state_3_cells']].astype(float))
 
     return pd.concat(dfs).groupby(level=0).mean()
 
@@ -95,9 +97,56 @@ def sagg(fnames):
 
         if df is not -1:
             dfs.append(
-                df["trajectory"][['total_population', 'forest_state_3_cells']])
+                df["trajectory"][['total_population',
+                                  'forest_state_3_cells']].astype(float))
 
     return pd.concat(dfs).groupby(level=0).std()
+
+
+def collect(fnames):
+    """colect all trajectories in fnames, concat them and save them to hdf
+    store
+    """
+    global TABLE_EXISTS
+    # get parameter values from file names
+    fnshort = fnames[0].rsplit('/', 1)[1].rsplit('.')[0]
+    srtrade, sres, srest = fnshort.rsplit('-')
+    stest, srunid = srest.split('_')
+    r_trade, r_es, test = int(srtrade), float(sres.replace('o',
+                                                           '.')), bool(stest)
+
+    # load files and set index with parameter values
+    dfs = []
+
+    for i, f in enumerate(fnames):
+        data = load(f)
+
+        if data is not -1:
+            # get trajectory dataframe from results
+            df = data["trajectory"]
+            # generate multiindex with parameter values
+            index = pd.MultiIndex.from_product(
+                [[r_trade], [r_es], [test], [i], df.index.values],
+                names=['r_trade', 'r_es', 'test', 'run_id', 'step'])
+            df.index = index
+
+            dfs.append(df)
+    dfa = pd.concat(dfs)
+
+    print(dfa.index)
+    print(dfa[['total_population']])
+
+    with pd.HDFStore('all_trjs.hd5') as store:
+        if not TABLE_EXISTS:
+            print('create table')
+            store.put('d1',
+                      dfa.astype(float),
+                      append=False,
+                      format='table',
+                      data_columns=True)
+            TABLE_EXISTS = True
+        else:
+            store.append('d1', dfa.astype(float))
 
 
 def run_function(r_bca=0.2,
@@ -274,10 +323,7 @@ def run_experiment(test, mode, job_id, max_id):
     estimators1 = {"<mean_trajectories>": magg, "<sigma_trajectories>": sagg}
     name2 = "all_trajectories"
 
-    estimators2 = {
-        "trajectory_list": lambda fnames:
-        [load(f)["trajectory"] for f in fnames]
-    }
+    estimators2 = {"trajectory_list": collect}
 
     def plot_function(steps=1,
                       input_location='./',
@@ -394,9 +440,9 @@ def run_experiment(test, mode, job_id, max_id):
         handle.resave(eva=estimators3, name=name3, no_output=True)
     elif mode == 2:
         handle.resave(eva=estimators1, name=name1)
-        handle.resave(eva=estimators2, name=name2)
     elif mode == 3:
-        handle.compute(run_func=movie_function)
+        handle.resave(eva=estimators2, name=name2, no_output=True)
+        # handle.compute(run_func=movie_function)
 
     return 1
 
