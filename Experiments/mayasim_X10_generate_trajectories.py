@@ -34,7 +34,7 @@ try:
 except ImportError:
     import pickle as cp
 
-STEPS = 2000
+STEPS = 1500
 TABLE_EXISTS = False
 
 
@@ -108,45 +108,97 @@ def collect(fnames):
     store
     """
     global TABLE_EXISTS
+    if len(fnames) == 0:
+        return
+    print(fnames[0])
+
     # get parameter values from file names
     fnshort = fnames[0].rsplit('/', 1)[1].rsplit('.')[0]
-    srtrade, sres, srest = fnshort.rsplit('-')
+    parts = fnshort.rsplit('-')
+
+    if len(parts) == 3:
+        [srtrade, sres, srest] = parts
+    elif len(parts) == 4:
+        srtrade = parts[0]
+        sres = f'{parts[1]}-{parts[2]}'
+        srest = parts[3]
     stest, srunid = srest.split('_')
     r_trade, r_es, test = int(srtrade), float(sres.replace('o',
                                                            '.')), bool(stest)
+    # workin variables:
+    dfs = []  # list of data frames for results
+    cdfs = None  # list of processed parameter combinations
 
+    # load list of processed parameter combinations
+    try:
+        with pd.HDFStore('all_trjs.hd5') as store:
+            cdfs = store.select('cdfs')
+    except Exception as e:
+        print(e)
+
+    # and save them in a list
+
+    if cdfs is None:
+        c_pars = []
+    else:
+        c_pars = list(cdfs[0])
+
+    # if parameter cobination is not marked as processed,
     # load files and set index with parameter values
-    dfs = []
+    n_dfs = 0  # number of successfully loaded result data frames
 
-    for i, f in enumerate(fnames):
-        data = load(f)
+    if (r_trade, r_es, test) not in c_pars:
+        # load data from all files for given parameters and combine them in one
+        # data frame.
 
-        if data is not -1:
-            # get trajectory dataframe from results
-            df = data["trajectory"]
-            # generate multiindex with parameter values
-            index = pd.MultiIndex.from_product(
-                [[r_trade], [r_es], [test], [i], df.index.values],
-                names=['r_trade', 'r_es', 'test', 'run_id', 'step'])
-            df.index = index
+        for i, f in enumerate(fnames):
+            # load data
+            data = load(f)
+            # if load was successful
 
-            dfs.append(df)
-    dfa = pd.concat(dfs)
+            if data is not -1 and data is not None:
+                # count successfully loaded data:
+                n_dfs += 1
+                # get trajectory dataframe from results
+                df = data["trajectory"][['total_population']]
+                # generate multiindex with parameter values
+                index = pd.MultiIndex.from_product(
+                    [[r_trade], [r_es], [test], [i], df.index.values],
+                    names=['r_trade', 'r_es', 'test', 'run_id', 'step'])
+                df.index = index
+                # append data to list of result data frames
+                dfs.append(df)
 
-    print(dfa.index)
-    print(dfa[['total_population']])
+        # add parameter combination to list of processed parameter combinations
 
-    with pd.HDFStore('all_trjs.hd5') as store:
-        if not TABLE_EXISTS:
-            print('create table')
-            store.put('d1',
-                      dfa.astype(float),
-                      append=False,
-                      format='table',
-                      data_columns=True)
-            TABLE_EXISTS = True
+        if cdfs is None:
+            cdfs_new = pd.DataFrame(data=[[(r_trade, r_es, test)]])
         else:
-            store.append('d1', dfa.astype(float))
+            cdfs_new = cdfs.append(pd.DataFrame(data=[[(r_trade, r_es,
+                                                        test)]]))
+
+        # if there there is data, put it together
+
+        if n_dfs > 0:
+            dfa = pd.concat(dfs)
+        else:
+            dfs = None
+
+        # write results to hdf
+        with pd.HDFStore('all_trjs.hd5') as store:
+            if dfs is not None:
+                if not TABLE_EXISTS:
+                    print('create table')
+                    store.put('d1',
+                              dfa.astype(float),
+                              append=False,
+                              format='table',
+                              data_columns=True)
+                    TABLE_EXISTS = True
+                else:
+                    store.append('d1', dfa.astype(float))
+            # save updated list of processed parameter combinations in hdf
+            store.put('cdfs', cdfs_new)
 
 
 def run_function(r_bca=0.2,
