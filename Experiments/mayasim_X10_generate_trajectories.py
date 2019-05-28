@@ -361,7 +361,7 @@ def run_experiment(test, mode, job_id, max_id):
         r_es = [0.0002, 0.0001]
     else:
         r_trade = [round(x, 5) for x in np.arange(4000, 9400, 100)]
-        r_es = [round(x, 5) for x in np.arange(0.00005, 0.00018, 0.000002)]
+        r_es = [round(x, 5) for x in np.arange(0.00005, 0.00018, 0.000001)]
 
     param_combs = list(it.product(r_trade, r_es, [test]))
 
@@ -464,7 +464,7 @@ def run_experiment(test, mode, job_id, max_id):
         """
         la = len(array)
         irange = i_max - i_min
-        di = int(np.floor(la / irange)) if irange > 1 else 1
+        di = int(np.ceil(la / irange)) if irange > 0 else 1
         i0 = i - i_min
         i1 = i0 * di
         i2 = (i0 + 1) * di
