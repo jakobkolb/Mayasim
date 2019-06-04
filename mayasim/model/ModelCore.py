@@ -724,7 +724,7 @@ class ModelCore(Parameters):
                         try:
                             self.cropped_cells[city][dim] \
                                 .remove(useless_cropped_cell[dim])
-                        except ValueError():
+                        except ValueError:
                             print('ERROR: Useless cell gone already')
                     abandoned += 1
 
@@ -735,7 +735,6 @@ class ModelCore(Parameters):
 
             for city in range(len(self.population))
         ]
-        print('cropped cells ', sum(self.number_cropped_cells))
 
         return abandoned, sown
 
@@ -1056,7 +1055,6 @@ class ModelCore(Parameters):
         influenced_cells = np.concatenate(self.cells_in_influence, axis=1)
         vacant_lands[influenced_cells[0], influenced_cells[1]] = 0
         vacant_lands = np.asarray(np.where(vacant_lands == 1))
-        print('vacant land cells ', len(vacant_lands[0]))
         for city in self.populated_cities:
             rd = np.random.rand()
 
@@ -1273,7 +1271,7 @@ class ModelCore(Parameters):
             t += 1
 
             if self.debug:
-                print("time = ", t)
+                print(f"time = {t}, population = {sum(self.population)}")
 
             # evolve subselfs
             # ecosystem
@@ -1525,9 +1523,6 @@ class ModelCore(Parameters):
         total_agriculture_cells = sum(self.number_cropped_cells)
         total_cells_in_influence = sum(self.number_cells_in_influence)
 
-        if self.debug:
-            print(total_population, total_settlements)
-
         self.trajectory.append([
             time, total_population, max_population, total_migrangs,
             total_settlements, total_agriculture_cells,
@@ -1681,17 +1676,16 @@ if __name__ == "__main__":
                       output_geographic_data=True,
                       output_data_location=location)
     # run Model
-    timesteps = 20
+    timesteps = 300
     model.crop_income_mode = 'sum'
     model.r_es_sum = 0.0001
-    model.r_bca_sum = 0.1
+    model.r_bca_sum = 0.25
     model.population_control = 'False'
     model.run(timesteps)
 
     trj = model.get_trajectory()
     plot = trj[[
-        'lost trade links', 'built trade links', 'new settlements',
-        'killed settlements', 'total_trade_links'
+        'total_population', 'total_settlements', 'total_migrangs'
     ]].plot()
     plt.show()
     plt.savefig(plot, location + 'plot')
