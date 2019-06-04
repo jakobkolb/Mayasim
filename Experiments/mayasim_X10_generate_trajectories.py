@@ -360,10 +360,11 @@ def run_experiment(test, mode, job_id, max_id):
         r_trade = [6000, 7000]
         r_es = [0.0002, 0.0001]
     else:
-        r_trade = [round(x, 5) for x in np.arange(4000, 9400, 100)]
-        r_es = [round(x, 5) for x in np.arange(0.00005, 0.00018, 0.000001)]
-
+        r_trade = [round(x, 5) for x in np.arange(5000, 9400, 100)]
+        r_es = [round(x, 6) for x in np.arange(0.00005, 0.00014, 0.000001)]
+    print(r_es)
     param_combs = list(it.product(r_trade, r_es, [test]))
+    print(len(param_combs))
 
     STEPS = 2000 if not test else 5
     sample_size = 31 if not test else 2
