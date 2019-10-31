@@ -361,8 +361,10 @@ def run_experiment(test, mode, job_id, max_id):
         r_es = [0.0002, 0.0001]
     else:
         r_trade = [round(x, 5) for x in np.arange(5000, 9400, 100)]
-        r_es = [round(x, 6) for x in np.arange(0.00005, 0.00014, 0.000001)]
+        r_es = [round(x, 6) for x in np.arange(0.00005, 0.00016, 0.0000025)]
+    print(r_trade)
     print(r_es)
+    print(len(r_trade), len(r_es))
     param_combs = list(it.product(r_trade, r_es, [test]))
     print(len(param_combs))
 
